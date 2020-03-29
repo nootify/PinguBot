@@ -22,7 +22,7 @@ class Admin(commands.Cog):
         except Exception as e:
             await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
         else:
-            await ctx.send('\N{HEART}')
+            await ctx.send('\N{check mark}')
 
     @commands.command(name='reload', hidden=True)
     @commands.cooldown(1, 5, commands.BucketType.default)
@@ -33,7 +33,7 @@ class Admin(commands.Cog):
         except Exception as e:
             await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
         else:
-            await ctx.send('\N{HEART}')
+            await ctx.send('\N{check mark}')
 
     @commands.command(name='unload', hidden=True)
     @commands.cooldown(1, 5, commands.BucketType.default)
@@ -44,7 +44,7 @@ class Admin(commands.Cog):
         except Exception as e:
             await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
         else:
-            await ctx.send('\N{HEART}')
+            await ctx.send('\N{check mark}')
 
 
 def setup(bot):
