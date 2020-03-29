@@ -13,6 +13,15 @@ class Admin(commands.Cog):
         """
         return await self.bot.is_owner(ctx.author)
 
+    @commands.command(name='shutdown', hidden=True)
+    @commands.cooldown(1, 5, commands.BucketType.default)
+    async def close_bot(self, ctx):
+        """Shutdown the bot instance. PinguBot must be manually rebooted server-side if issued."""
+        try:
+            await self.bot.close()
+        except Exception as e:
+            await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
+
     @commands.command(name='load', hidden=True)
     @commands.cooldown(1, 5, commands.BucketType.default)
     async def load_cog(self, ctx, *, module: str):
