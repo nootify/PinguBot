@@ -1,3 +1,5 @@
+import logging
+
 import asyncio
 import discord
 from discord.ext import commands
@@ -6,43 +8,42 @@ from discord.ext import commands
 class Clown(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.guild_clowns = {}
+        self.server_clowns = {}
+        self.log = logging.getLogger(__name__)
 
     @commands.group(name='clown')
     async def clown(self, ctx):
-        """Shows information about who the clown is."""
-        # Show information about who the clown is if no subcommand is specified
-        # or some other erroneous subcommand is given
+        """Shows information about who the clown is when no subcommand is given."""
         if ctx.invoked_subcommand is None:
-            if ctx.guild.id not in self.guild_clowns:
-                self.guild_clowns[ctx.guild.id] = None
-            guild_clown = self.guild_clowns[ctx.guild.id]
-            if guild_clown is None:
-                await ctx.send(':information_source: The clown is no one.')
-            elif guild_clown.nick is None:
-                await ctx.send(f':information_source: The clown is `{guild_clown}`.')
+            if ctx.guild.id not in self.server_clowns:
+                self.server_clowns[ctx.guild.id] = None
+            server_clown = self.server_clowns[ctx.guild.id]
+            if server_clown is None:
+                await ctx.send(f"{self.bot.icons['info']} The clown is no one.")
+            elif server_clown.nick is None:
+                await ctx.send(f"{self.bot.icons['info']} The clown is `{server_clown}`.")
             else:
-                await ctx.send(f':information_source: The clown is `{guild_clown.nick} ({guild_clown})`.')
+                await ctx.send(f"{self.bot.icons['info']} The clown is `{server_clown.nick} ({server_clown})`.")
 
     # Using the magic of Member Converter
     # this transforms a string mention of a user into a discord Member object
     @clown.command(name='set')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def set_clown(self, ctx, mention: discord.Member):
-        """Sets the clown in a guild to a mentioned user."""
+        """Sets the clown in a server to a mentioned user."""
         if mention in ctx.guild.members:
-            self.guild_clowns[ctx.guild.id] = mention
+            self.server_clowns[ctx.guild.id] = mention
             if mention.nick is None:
-                await ctx.send(f':information_source: The clown is now set to `{mention}`.')
+                await ctx.send(f"{self.bot.icons['info']} The clown is now set to `{mention}`.")
             else:
-                await ctx.send(f':information_source: The clown is now set to `{mention.nick} ({mention})`.')
+                await ctx.send(f"{self.bot.icons['info']} The clown is now set to `{mention.nick} ({mention})`.")
 
     @clown.command(name='reset')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def reset_clown(self, ctx):
-        """Reset the current clown in a guild to no one."""
-        self.guild_clowns[ctx.guild.id] = None
-        await ctx.send(':information_source: The clown is now set to no one.')
+        """Reset the current clown in a server to no one."""
+        self.server_clowns[ctx.guild.id] = None
+        await ctx.send(f"{self.bot.icons['info']} The clown is now set to no one.")
 
     @clown.command(name='honk', case_insensitive=True)
     @commands.cooldown(1, 5, commands.BucketType.guild)
@@ -57,11 +58,11 @@ class Clown(commands.Cog):
     @honk.before_invoke
     async def prepare_clown(self, ctx):
         # Prepares necessary conditions to connect to the voice channel
-        if ctx.guild.id not in self.guild_clowns or self.guild_clowns[ctx.guild.id] is None:
-            raise commands.CommandError('No clown was set.')
+        if ctx.guild.id not in self.server_clowns or self.server_clowns[ctx.guild.id] is None:
+            raise commands.CommandError(f"{self.bot.icons['fail']} No clown was set.")
         elif ctx.voice_client is None:
             if ctx.author.voice is None:
-                raise commands.CommandError('You are not connected to a voice channel.')
+                raise commands.CommandError(f"{self.bot.icons['fail']} You are not connected to a voice channel.")
             else:
                 # Custom permission checker because the library does not have built-in support
                 # for voice channels. You cannot use @commands.bot_has_permissions(...) decorators.
@@ -71,7 +72,7 @@ class Clown(commands.Cog):
                 if self_permissions.connect and self_permissions.speak:
                     await ctx.author.voice.channel.connect()
                 else:
-                    raise commands.CommandError('Missing permissions to speak/connect to the voice channel.')
+                    raise commands.CommandError(f"{self.bot.icons['fail']} Missing permissions to speak/connect to the voice channel.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 

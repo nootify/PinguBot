@@ -5,10 +5,9 @@ from discord.ext import commands
 
 
 class Admin(commands.Cog):
-    log = logging.getLogger(__name__)
-
     def __init__(self, bot):
         self.bot = bot
+        self.log = logging.getLogger(__name__)
 
     async def cog_check(self, ctx):
         """Checks if the user is the bot owner for every command.
@@ -40,7 +39,7 @@ class Admin(commands.Cog):
                 await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
                 try:
                     await self.bot.close()
-                    logging.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id}).")
+                    self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id}).")
                 except Exception as e:
                     await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
             else:

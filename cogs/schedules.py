@@ -6,28 +6,28 @@ from discord.ext import commands, tasks
 
 
 class Schedules(commands.Cog):
-    log = logging.getLogger(__name__)
-
     def __init__(self, bot):
         self.bot = bot
         self.course_url = 'https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term='
         self.schedule_updater.start()
+        self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
+        self.log.info('Module has been unloaded. Course schedule updater is no longer running.')
         self.schedule_updater.cancel()
 
     @tasks.loop(minutes=30)
     async def schedule_updater(self):
-        logging.info('Running course schedule updater...')
+        self.log.info('Running course schedule updater...')
         async with aiohttp.ClientSession() as session:
             async with session.get(self.course_url) as response:
                 if response.status == 200:
                     data = await response.text()
                     data = data[7:-1]  # Trims off the call to 'define()' that surrounds the JSON
                     self.bot.njit_course_schedules = json.loads(data)
-                    logging.info('Latest course schedule data successfully loaded into memory!')
+                    self.log.info('Latest course schedule data successfully loaded into memory!')
                 else:
-                    logging.error('Course data failed to update.')
+                    self.log.error('Course data failed to update.')
 
     @schedule_updater.before_loop
     async def prepare_updater(self):

@@ -1,4 +1,5 @@
 import discord
+
 import pingutoken
 
 default = {'activity': discord.Activity(type=discord.ActivityType.watching, name='Pingu in the City'),
