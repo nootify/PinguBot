@@ -1,59 +1,90 @@
+import asyncio
+import logging
+
 from discord.ext import commands
 
 
 class Admin(commands.Cog):
+    log = logging.getLogger(__name__)
+
     def __init__(self, bot):
         self.bot = bot
 
     async def cog_check(self, ctx):
-        """This check is applied at a cog level, meaning the check is applied
-        to every command.
-
-        Note: Bot.is_owner() is a coroutine and so must be awaited.
+        """Checks if the user is the bot owner for every command.
+        Note: The built-in method Bot.is_owner() is a coroutine and must be awaited.
         """
         return await self.bot.is_owner(ctx.author)
 
     @commands.command(name='shutdown', hidden=True)
-    @commands.cooldown(1, 5, commands.BucketType.default)
-    async def close_bot(self, ctx):
-        """Shutdown the bot instance. PinguBot must be manually rebooted server-side if issued."""
+    async def shutdown_bot(self, ctx):
+        """Shutdown the bot instance. Pingu must be manually rebooted server-side when issued."""
+        # Grab id of user that issued the command
+        original_issuer = ctx.message.author.id
+        await ctx.send(':zzz: Shutdown this Pingu instance (y/N)?')
+
+        # Used to confirm if the message received is indeed the user that sent it
+        def confirm_user(msg):
+            acceptable_input = ['y', 'yes', 'n', 'no']
+            return (msg.content.lower() in acceptable_input) and msg.author.id == original_issuer
+
+        # Check for acceptable input
         try:
-            await self.bot.close()
-        except Exception as e:
-            await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
+            response = await self.bot.wait_for('message', timeout=10.0, check=confirm_user)
+        except asyncio.TimeoutError:
+            await ctx.send(f"{self.bot.icons['fail']} Shutdown attempt timed out.")
+        else:
+            # Respond as necessary to the input
+            user_response = response.content
+            if user_response == 'y' or user_response == 'yes':
+                await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
+                try:
+                    await self.bot.close()
+                    logging.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id}).")
+                except Exception as e:
+                    await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
+            else:
+                await ctx.send(f"{self.bot.icons['fail']} Shutdown aborted by user.")
 
     @commands.command(name='load', hidden=True)
-    @commands.cooldown(1, 5, commands.BucketType.default)
     async def load_cog(self, ctx, *, module: str):
-        """Loads a module."""
+        """Loads a cog module."""
         try:
             self.bot.load_extension(f'cogs.{module}')
         except Exception as e:
-            await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
+            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
         else:
-            await ctx.send('\N{check mark}')
+            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
 
     @commands.command(name='reload', hidden=True)
-    @commands.cooldown(1, 5, commands.BucketType.default)
     async def reload_cog(self, ctx, *, module: str):
-        """Reloads a module."""
+        """Reloads a cog module."""
         try:
             self.bot.reload_extension(f'cogs.{module}')
         except Exception as e:
-            await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
+            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
         else:
-            await ctx.send('\N{check mark}')
+            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
 
     @commands.command(name='unload', hidden=True)
-    @commands.cooldown(1, 5, commands.BucketType.default)
     async def unload_cog(self, ctx, *, module: str):
-        """Unloads a module."""
+        """Unloads a cog module."""
         try:
             self.bot.unload_extension(f'cogs.{module}')
         except Exception as e:
-            await ctx.send(f'\N{BROKEN HEART} {type(e).__name__}: {e}')
+            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
         else:
-            await ctx.send('\N{check mark}')
+            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
+
+    @commands.command(name='eval', hidden=True)
+    async def debug_bot(self, ctx, *, expression: str):
+        """Allows access to internal variables for debugging purposes."""
+        try:
+            result = eval(expression)
+        except Exception as e:
+            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
+        else:
+            await ctx.send(f"{self.bot.icons['info']} {result}")
 
 
 def setup(bot):

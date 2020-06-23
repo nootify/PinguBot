@@ -1,91 +1,68 @@
-import discord
-import pingutoken
+import logging
 import platform
 import sys
-import traceback
+
+import discord
 from discord.ext import commands
 
+import bot
 
-def main():
-    """Main driver program to run the bot.
 
-    Do not publish the ID nor auth token!
+# Logging module to be used in every other cog, including this one
+logging.basicConfig(level=logging.INFO,
+                    format='[%(asctime)s] [%(levelname)s] %(module)s: %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S%p',
+                    filename='pingu.log',
+                    filemode='w')
+consoleLogFormat = logging.Formatter('[%(asctime)s] [%(levelname)s] %(module)s: %(message)s')
+consoleLogger = logging.StreamHandler(sys.stdout)
+consoleLogger.setFormatter(consoleLogFormat)
+logging.getLogger().addHandler(consoleLogger)
+
+# Instantiate Pingu, apply default values, and load the default modules on startup
+pingu = commands.Bot(command_prefix=bot.default['prefix'], description=bot.default['desc'])
+pingu.default = bot.default
+pingu.current = {'activity': None, 'desc': None, 'prefix': None, 'status': None}
+pingu.icons = {'fail': ':x:', 'info': ':information_source:', 'success': ':white_check_mark:'}
+pingu.njit_course_schedules = {}
+
+# Loads the specified modules located in the cogs directory
+for cog in bot.cogs:
+    pingu.load_extension(f'cogs.{cog}')
+
+
+@pingu.event
+async def on_ready():
+    """Prints information about the token being used, simple statistics of the bot being used,
+    and the versions of the dependencies being used. Also sets one other default parameter of the bot.
     """
-    # The default values that are used when the bot initially starts up
-    current = {'activity': discord.Activity(type=discord.ActivityType.watching, name='Pingu in the City'),
-               'prefix': '%',
-               'status': discord.Status.online,
-               'version': '1.20.0001'}
-    default = {'description': 'Noot noot',
-               'prefix': '%'}
+    total_servers = len(pingu.guilds)
+    total_users = len(set(pingu.get_all_members()))
+    print('---Initial Startup Information---')
+    print(f'[ Bot Information ]\n'
+          f'- Username: {pingu.user}\n'
+          f'- ID: {pingu.user.id}')
+    print(f'[ Connected To ]\n'
+          f'- {total_servers} servers\n'
+          f'- {total_users} unique users')
+    print(f'[ Dependencies ]\n'
+          f'- Python v{platform.python_version()}\n'
+          f'- discord.py[voice] v{discord.__version__}\n'
+          f'- PinguBot v{bot.version}')
+    print('---------------------------------')
 
-    # Instantiate the bot instance and attach said values to the instance
-    pingu = commands.Bot(command_prefix=default['prefix'], description=default['description'])
-    pingu.current = current
-    pingu.default = default
-
-    # Automatically load all essential cogs onto the bot
-    # 'Cog modules' require dot notation to access child folders
-    default_cogs = ['admin', 'clown', 'music', 'help']
-    for cog in default_cogs:
-        pingu.load_extension(f'cogs.{cog}')
-
-    @pingu.event
-    async def on_command_error(ctx, error):
-        print(error)
-        if isinstance(error, commands.CommandNotFound) or isinstance(error, commands.MissingRequiredArgument):
-            # This prevents spam from malformed syntax or typos on a command by a user.
-            return
-        if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f':rotating_light: Stop! You violated the law! Wait {error.retry_after:0.2f} second(s).')
-        elif isinstance(error, commands.CheckFailure):
-            await ctx.send(':x: You are missing permission(s) to run the command.')
-        elif isinstance(error, commands.CommandError):
-            try:
-                await ctx.send(f':x: {error}')
-            except discord.Forbidden as e:
-                print('\nException caused by user {0.author} in guild {0.guild} with command {1.qualified_name}:\n{2}\n{3}'.format(
-                        ctx.message, ctx.command, error, e), file=sys.stderr)
-        elif isinstance(error, commands.CommandInvokeError):
-            print('\nException caused by user {0.author} in guild {0.guild} with command {1.qualified_name}:'.format(
-                ctx.message, ctx.command), file=sys.stderr)
-            traceback.print_tb(error.original.__traceback__)
-            print('{0.__class__.__name__}: {0}'.format(error.original), file=sys.stderr)
-
-    @pingu.event
-    async def on_message(message):
-        """This runs every time a message is sent."""
-        # Ignore responses from other bots (unable to distinguish from self-bots, who are breaking Discord ToS)
-        # or a response from a private message (DMs) and continue to process queries
-        if message.author.bot or message.guild is None:
-            return
-
-        await pingu.process_commands(message)
-
-    @pingu.event
-    async def on_ready():
-        """This only runs after the bot is ready to process commands.
-
-        These are the various discord activities available for the bot:
-        Gaming:    discord.Game(name="some_game"))
-        Streaming: discord.Streaming(name="some_stream", url="some_url"))
-        Listening: discord.Activity(type=discord.ActivityType.listening, name="some_song"))
-        Watching:  discord.Activity(type=discord.ActivityType.watching, name="some_movie"))
-        """
-
-        # Print relevant Pingu and library information to console
-        # and sets initial Discord status
-        total_guilds = len(pingu.guilds)
-        total_users = len(set(pingu.get_all_members()))
-        print('Logged in as: {0.user} | ID: {0.user.id}\nConnected to: {1} servers | {2} users'.format(
-            pingu, total_guilds, total_users))
-        print('Dependency Information: discord.py v{} | Python v{} | PinguBot v{}'.format(
-            discord.__version__, platform.python_version(), pingu.current['version']))
-        await pingu.change_presence(status=pingu.current['status'], activity=pingu.current['activity'])
-
-    # Tokens are sacred
-    pingu.run(pingutoken.secret)
+    await pingu.change_presence(status=pingu.default['status'], activity=pingu.default['activity'])
 
 
-if __name__ == "__main__":
-    main()
+@pingu.event
+async def on_message(message):
+    # Ignore messages from itself, other bots, or from DMs
+    if message.author.bot or message.guild is None:
+        return
+
+    # Pass information to other cogs
+    await pingu.process_commands(message)
+
+
+if __name__ == '__main__':
+    pingu.run(bot.token)
