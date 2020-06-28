@@ -6,6 +6,7 @@ from discord.ext import commands
 
 
 class Clown(commands.Cog):
+    """Stuff related to clown of the week"""
     def __init__(self, bot):
         self.bot = bot
         self.server_clowns = {}
@@ -13,7 +14,7 @@ class Clown(commands.Cog):
 
     @commands.group(name='clown')
     async def clown(self, ctx):
-        """Shows information about who the clown is when no subcommand is given."""
+        """Shows who the clown is in a server."""
         if ctx.invoked_subcommand is None:
             if ctx.guild.id not in self.server_clowns:
                 self.server_clowns[ctx.guild.id] = None
@@ -41,14 +42,14 @@ class Clown(commands.Cog):
     @clown.command(name='reset')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def reset_clown(self, ctx):
-        """Reset the current clown in a server to no one."""
+        """Reset the clown in a server to no one."""
         self.server_clowns[ctx.guild.id] = None
         await ctx.send(f"{self.bot.icons['info']} The clown is now set to no one.")
 
     @clown.command(name='honk', case_insensitive=True)
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def honk(self, ctx):
-        """Honk at the designated clown when they are in the same voice channel as you."""
+        """Honk at the clown when they are in the same voice chat as you."""
         file_name = 'soundfx/honk.mp3'
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
         ctx.voice_client.play(source)

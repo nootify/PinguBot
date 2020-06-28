@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import logging
 import platform
 import sys
@@ -8,7 +9,7 @@ from discord.ext import commands
 import bot
 
 
-# Log information to file and console
+# Main logger to log events to the file and console
 FORMAT = '[%(asctime)s] [%(levelname)s] %(name)s: %(message)s'
 DATEFMT = '%m-%d-%Y %I:%M:%S %p'
 logFormat = logging.Formatter(fmt=FORMAT, datefmt=DATEFMT)
@@ -28,13 +29,18 @@ log.info('Starting Pingu instance')
 # Instantiate Pingu and apply default values
 pingu = commands.Bot(command_prefix=bot.default['prefix'], description=bot.default['desc'])
 pingu.default = bot.default
-pingu.current = {'activity': None, 'desc': None, 'prefix': None, 'status': None}
-pingu.icons = {'fail': ':x:', 'info': ':information_source:', 'success': ':white_check_mark:'}
+pingu.current = {'activity': pingu.default['activity'],
+                 'desc': pingu.default['desc'],
+                 'prefix': pingu.default['prefix'],
+                 'status': pingu.default['status']}
+pingu.icons = {'fail': ':x:',
+               'info': ':information_source:',
+               'success': ':white_check_mark:'}
 pingu.njit_course_schedules = {}
 
 # Load the specified default modules
 for cog in bot.cogs:
-    log.info(f'Loading cog module: {cog}')
+    log.info(f"Loading cog module '{cog}'")
     pingu.load_extension(f'cogs.{cog}')
 
 
@@ -68,7 +74,7 @@ async def on_message(message):
     if message.author.bot or message.guild is None:
         return
 
-    # Pass information to other cogs
+    # Allow information to pass through
     await pingu.process_commands(message)
 
 
@@ -76,8 +82,11 @@ async def on_message(message):
 async def on_command_error(ctx, error):
     # Ignore malformed syntax or typos on a command by a user
     if isinstance(error, commands.CommandNotFound) or isinstance(error, commands.MissingRequiredArgument):
+        log.debug(f"{type(error).__name__}: {error}")
         return
+    # Send custom errors raised by commands
     elif isinstance(error, commands.CommandError):
+        log.debug(f"{type(error).__name__}: {error}")
         await ctx.send(error)
 
 

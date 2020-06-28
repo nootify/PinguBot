@@ -46,13 +46,14 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 
 class Music(commands.Cog):
+    """This is not ready to be used."""
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command(name='stop')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def stop_music(self, ctx):
-        """Stops the music and disconnects from the voice channel."""
+        """Stop playing music and disconnect from the voice channel."""
         if ctx.voice_client is not None:
             await ctx.voice_client.disconnect()
             await ctx.send(':information_source: Leaving voice channel.')
@@ -62,13 +63,13 @@ class Music(commands.Cog):
     @commands.command(name='clear')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def clear_music(self, ctx):
-        """Clears the current music queue."""
+        """Clear the current music queue."""
         await ctx.send('No queue system exists yet.')
 
     @commands.command(name='play')
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def play_music(self, ctx, url):
-        """Plays something from a given valid URL."""
+        """Play something from a given valid URL."""
         if ctx.voice_client.is_playing():
             await ctx.send('No queue system implemented yet. Can only play one song at a time.')
 

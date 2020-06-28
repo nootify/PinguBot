@@ -1,7 +1,9 @@
 import asyncio
 import logging
 
+import psutil
 from discord.ext import commands
+from psutil._common import bytes2human
 
 
 class Admin(commands.Cog):
@@ -84,6 +86,13 @@ class Admin(commands.Cog):
             await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
         else:
             await ctx.send(f"{self.bot.icons['info']} {result}")
+
+    @commands.command(name='usage', hidden=True)
+    async def debug_info(self, ctx):
+        cpu_usage = f"{psutil.cpu_percent():.02f}%"
+        memory_usage = f"{bytes2human(psutil.virtual_memory().used)}"
+        total_memory = f"{bytes2human(psutil.virtual_memory().total)}"
+        await ctx.send(f"{self.bot.icons['info']} Host Information\nCPU: {cpu_usage}\nRAM: {memory_usage}/{total_memory}")
 
 
 def setup(bot):

@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 
 
 class Schedules(commands.Cog):
+    """Specifically, NJIT course schedules"""
     def __init__(self, bot):
         self.bot = bot
         self.course_url = 'https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term='
@@ -13,25 +14,34 @@ class Schedules(commands.Cog):
         self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
-        self.log.info('Module has been unloaded. Course schedule updater is no longer running.')
+        self.log.info('Cog unloaded from memory; course schedule updater no longer running')
         self.schedule_updater.cancel()
 
     @tasks.loop(minutes=30)
     async def schedule_updater(self):
         self.log.info('Running course schedule updater...')
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.course_url) as response:
-                if response.status == 200:
-                    data = await response.text()
-                    data = data[7:-1]  # Trims off the call to 'define()' that surrounds the JSON
-                    self.bot.njit_course_schedules = json.loads(data)
-                    self.log.info('Latest course schedule data successfully loaded into memory!')
-                else:
-                    self.log.error('Course data failed to update.')
+        try:
+            timeout = aiohttp.ClientTimeout(total=5.0)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(self.course_url) as response:
+                    if response.status == 200:
+                        data = await response.text()
+                        data = data[7:-1]  # Trims off the call to 'define()' that surrounds the JSON
+                        self.bot.njit_course_schedules = json.loads(data)
+                        self.log.info('Latest course schedule data successfully loaded into memory')
+                    else:
+                        self.log.error(f"NJIT endpoint responded with HTTP {response.status}")
+        except Exception as err:
+            self.log.error(f"{type(err).__name__}: {err}")
 
     @schedule_updater.before_loop
     async def prepare_updater(self):
         await self.bot.wait_until_ready()
+
+    # @schedule_updater.after_loop
+    # async def check_updater(self):
+    #     if self.schedule_updater.failed():
+    #
 
     @commands.command(name='course')
     async def get_course(self, ctx):
