@@ -31,10 +31,10 @@ class PinguHelp(commands.HelpCommand):
             # since they don't have a class docstring associated with them
             if cog and cog.description:
                 # Sort the commands in a module
-                filtered = await self.filter_commands(available_commands, sort=True)
+                filtered_commands = await self.filter_commands(available_commands, sort=True)
                 # Better than using a for loop and then stripping off the last comma
-                desc = f"*{cog.description}*\nCommands: `"
-                desc += "`, `".join(command.name for command in filtered) + "`"
+                desc = (f"*{cog.description}*\n"
+                        f"Commands: `{'`, `'.join(command.name for command in filtered_commands)}`")
                 embed.add_field(name=cog_name, value=desc, inline=False)
 
         # embed.set_author(name="Pingu Commands", icon_url="")

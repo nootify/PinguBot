@@ -51,7 +51,9 @@ class Schedules(commands.Cog):
             self.bot.njit_course_schedules = {}
 
     @commands.command(name="course")
+    @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def get_course(self, ctx, course_number: str, *, requested_semester=None):
+        """Retrieves information about a course based on the semester"""
         if len(self.bot.njit_course_schedules) == 0:
             raise commands.CommandError("Course data was not retrieved. Please try again later.")
 

@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import os
+import platform
+from datetime import datetime
 
 import psutil
 from discord.ext import commands
@@ -41,7 +44,8 @@ class Admin(commands.Cog):
                 await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
                 try:
                     await self.bot.close()
-                    self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id}).")
+                    self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id})"
+                                     f" by user '{ctx.message.author}' (id: {ctx.message.author.id}).")
                 except Exception as e:
                     await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
             else:
@@ -49,7 +53,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="load", hidden=True)
     async def load_cog(self, ctx, module: str):
-        """Loads a cog module."""
+        """Load a specified cog."""
         try:
             self.bot.load_extension(f"cogs.{module}")
         except Exception as e:
@@ -59,7 +63,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="reload", hidden=True)
     async def reload_cog(self, ctx, module: str):
-        """Reloads a cog module."""
+        """Reload a specified cog."""
         try:
             self.bot.reload_extension(f"cogs.{module}")
         except Exception as e:
@@ -69,7 +73,7 @@ class Admin(commands.Cog):
 
     @commands.command(name="unload", hidden=True)
     async def unload_cog(self, ctx, module: str):
-        """Unloads a cog module."""
+        """Unload a specified cog."""
         try:
             self.bot.unload_extension(f"cogs.{module}")
         except Exception as e:
@@ -92,7 +96,13 @@ class Admin(commands.Cog):
         cpu_usage = f"{psutil.cpu_percent():.02f}%"
         memory_usage = f"{bytes2human(psutil.virtual_memory().used)}"
         total_memory = f"{bytes2human(psutil.virtual_memory().total)}"
-        await ctx.send(f"{self.bot.icons['info']} Host Information\nCPU: {cpu_usage}\nRAM: {memory_usage}/{total_memory}")
+        usage_info = (f"{self.bot.icons['info']} Host Information\n"
+                      f"CPU: {cpu_usage}\n"
+                      f"RAM: {memory_usage}/{total_memory}\n"
+                      f"OS: {platform.system()} {platform.release()}\n"
+                      f"Running in: `{os.getcwd()}`\n"
+                      f"Time: {datetime.utcnow()}")
+        await ctx.send(usage_info)
 
 
 def setup(bot):
