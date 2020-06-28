@@ -21,22 +21,23 @@ class PinguHelp(commands.HelpCommand):
 
     # Display a list of available commands of each loaded cog
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title='Pingu Modules', colour=self.COLOUR, timestamp=datetime.utcnow())
+        embed = discord.Embed(title="Pingu Modules", colour=self.COLOUR, timestamp=datetime.utcnow())
         embed.description = self.get_description()
 
         # mapping is a dictionary of cogs paired with its associated commands
         for cog, available_commands in mapping.items():
-            cog_name = 'No Category' if cog is None else cog.qualified_name
+            cog_name = "No Category" if cog is None else cog.qualified_name
             # Skip over cogs that are meant to be hidden (e.g. admin, help)
             # since they don't have a class docstring associated with them
             if cog and cog.description:
-                desc = f"*{cog.description}*\nCommands: "
-                for command in available_commands:
-                    desc += f"`{command}`, "
-                desc = desc.strip(", ")
+                # Sort the commands in a module
+                filtered = await self.filter_commands(available_commands, sort=True)
+                # Better than using a for loop and then stripping off the last comma
+                desc = f"*{cog.description}*\nCommands: `"
+                desc += "`, `".join(command.name for command in filtered) + "`"
                 embed.add_field(name=cog_name, value=desc, inline=False)
 
-        # embed.set_author(name='Pingu Commands', icon_url='')
+        # embed.set_author(name="Pingu Commands", icon_url="")
         embed.set_footer(text=f"Issued by: {self.context.author}", icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
 
@@ -60,7 +61,7 @@ class PinguHelp(commands.HelpCommand):
         if isinstance(group, commands.Group):
             filtered = await self.filter_commands(group.commands, sort=True)
             for command in filtered:
-                embed.add_field(name=self.get_command_signature(command), value=command.short_doc or '...',
+                embed.add_field(name=self.get_command_signature(command), value=command.short_doc or "...",
                                 inline=False)
 
         embed.set_footer(text=f"Issued by: {self.context.author}", icon_url=self.context.author.avatar_url)

@@ -12,7 +12,7 @@ class Clown(commands.Cog):
         self.server_clowns = {}
         self.log = logging.getLogger(__name__)
 
-    @commands.group(name='clown')
+    @commands.group(name="clown")
     async def clown(self, ctx):
         """Shows who the clown is in a server."""
         if ctx.invoked_subcommand is None:
@@ -28,7 +28,7 @@ class Clown(commands.Cog):
 
     # Using the magic of Member Converter
     # this transforms a string mention of a user into a discord Member object
-    @clown.command(name='set')
+    @clown.command(name="set")
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def set_clown(self, ctx, mention: discord.Member):
         """Sets the clown in a server to a mentioned user."""
@@ -39,22 +39,22 @@ class Clown(commands.Cog):
             else:
                 await ctx.send(f"{self.bot.icons['info']} The clown is now set to `{mention.nick} ({mention})`.")
 
-    @clown.command(name='reset')
+    @clown.command(name="reset")
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def reset_clown(self, ctx):
         """Reset the clown in a server to no one."""
         self.server_clowns[ctx.guild.id] = None
         await ctx.send(f"{self.bot.icons['info']} The clown is now set to no one.")
 
-    @clown.command(name='honk', case_insensitive=True)
+    @clown.command(name="honk", case_insensitive=True)
     @commands.cooldown(1, 5, commands.BucketType.guild)
     async def honk(self, ctx):
         """Honk at the clown when they are in the same voice chat as you."""
-        file_name = 'soundfx/honk.mp3'
+        file_name = "soundfx/honk.mp3"
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
         ctx.voice_client.play(source)
         # voice_client.play debug:
-        # ctx.voice_client.play(source, after=lambda e: print('Player error: {}'.format(e)))
+        # ctx.voice_client.play(source, after=lambda e: print("Player error: {}".format(e)))
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
@@ -95,10 +95,10 @@ class Clown(commands.Cog):
     #             if after.channel.guild.voice_client.is_connected() is False:
     #                 await after.channel.connect()
     #
-    #             file_name = 'soundfx/honk.mp3'
+    #             file_name = "soundfx/honk.mp3"
     #             source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
     #             if after.channel.guild.voice_client.is_playing() is False:
-    #                 after.channel.guild.voice_client.play(source, after=lambda e: print('Player error: %s' % e) if e else None)
+    #                 after.channel.guild.voice_client.play(source, after=lambda e: print("Player error: %s" % e) if e else None)
     #             while after.channel.guild.voice_client.is_playing():
     #                 await asyncio.sleep(1)
     #
