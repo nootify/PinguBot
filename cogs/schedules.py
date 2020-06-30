@@ -25,10 +25,11 @@ class Schedules(commands.Cog):
     @tasks.loop(minutes=60)
     async def schedule_updater(self):
         filtered_years = ["2019", "2020"]
-        self.log.info(f"Running course schedule updater for year(s) {', '.join(filtered_years)}...")
+        self.log.info(f"Running course schedule updater for the following year(s): {', '.join(filtered_years)}...")
         try:
             timeout = aiohttp.ClientTimeout(total=60.0)
             async with aiohttp.ClientSession(timeout=timeout) as session:
+                # Fetch latest course data and process semester codes stored in the JSON
                 async with session.get(self.default_endpoint) as response:
                     if response.status == 200:
                         data = await response.text()
@@ -47,13 +48,15 @@ class Schedules(commands.Cog):
                     else:
                         self.log.error(f"NJIT endpoint responded with HTTP {response.status}")
 
+                # Only fetch other course data if the initial request was able to get the required information
                 if len(self.available_semesters) > 0:
-                    # Encode requests to NJIT using the EDIVALUE of each semester extracted from the first request
+                    # Encode requests with the semester codes extracted from the first request
                     endpoints = {}
                     for desc, code in self.available_semesters.items():
-                        endpoints[f"{self.default_endpoint}{code}"] = desc
+                        endpoints[desc] = f"{self.default_endpoint}{code}"
 
-                    for endpoint, desc in endpoints.items():
+                    # Hack-y way to iterate the actual semester names and the link to send it
+                    for desc, endpoint in endpoints.items():
                         async with session.get(endpoint) as response:
                             if response.status == 200:
                                 data = await response.text()
@@ -61,7 +64,7 @@ class Schedules(commands.Cog):
                                 self.bot.njit_course_schedules[desc] = json.loads(data)
                                 self.log.info(f"{desc} schedule data successfully loaded into memory")
                             else:
-                                self.log.error(f"Failed to retrieve {desc}:"
+                                self.log.error(f"Failed to retrieve course data for {desc}:"
                                                f" NJIT endpoint responded with HTTP {response.status}")
                     self.log.info("Previous semester data loaded into memory")
         except Exception as err:
@@ -80,6 +83,7 @@ class Schedules(commands.Cog):
             self.current_semester = None
             self.selected_semester = None
             self.bot.njit_course_schedules = {}
+            self.log.info("Clearing cached course data from memory")
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
