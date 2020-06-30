@@ -42,44 +42,29 @@ class Admin(commands.Cog):
             user_response = response.content
             if user_response == "y" or user_response == "yes":
                 await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
-                try:
-                    await self.bot.close()
-                    self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id})"
-                                     f" by user '{ctx.message.author}' (id: {ctx.message.author.id}).")
-                except Exception as e:
-                    await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
+                await self.bot.close()
+                self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id})"
+                                 f" by user '{ctx.message.author}' (id: {ctx.message.author.id}).")
             else:
                 await ctx.send(f"{self.bot.icons['fail']} Shutdown aborted by user.")
 
     @commands.command(name="load", hidden=True)
     async def load_cog(self, ctx, module: str):
         """Load a specified cog."""
-        try:
-            self.bot.load_extension(f"cogs.{module}")
-        except Exception as e:
-            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
-        else:
-            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
+        self.bot.load_extension(f"cogs.{module}")
+        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
 
     @commands.command(name="reload", hidden=True)
     async def reload_cog(self, ctx, module: str):
         """Reload a specified cog."""
-        try:
-            self.bot.reload_extension(f"cogs.{module}")
-        except Exception as e:
-            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
-        else:
-            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
+        self.bot.reload_extension(f"cogs.{module}")
+        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
 
     @commands.command(name="unload", hidden=True)
     async def unload_cog(self, ctx, module: str):
         """Unload a specified cog."""
-        try:
-            self.bot.unload_extension(f"cogs.{module}")
-        except Exception as e:
-            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
-        else:
-            await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
+        self.bot.unload_extension(f"cogs.{module}")
+        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
 
     @commands.command(name="eval", hidden=True)
     async def debug_bot(self, ctx, *, expression: str):

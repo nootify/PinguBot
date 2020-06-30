@@ -3,7 +3,7 @@
 import logging
 import platform
 import sys
-# import traceback
+import traceback
 
 import discord
 from discord.ext import commands
@@ -72,7 +72,7 @@ async def on_ready():
 
 @pingu.event
 async def on_message(message):
-    # Ignore messages from itself, other bots, or from DMs
+    # Ignore messages from itself, other bots, or from DMs (this can't catch users that are selfbotting)
     if message.author.bot or message.guild is None:
         return
 
@@ -82,15 +82,20 @@ async def on_message(message):
 
 @pingu.event
 async def on_command_error(ctx, error):
-    # Ignore malformed syntax or typos on a command by a user
-    if isinstance(error, commands.CommandNotFound) or isinstance(error, commands.MissingRequiredArgument):
+    # Errors that are unnecessary or are handled locally in each cog
+    ignored_errors = (commands.CommandNotFound, commands.MissingRequiredArgument)
+    if isinstance(error, ignored_errors):
         log.debug(f"{type(error).__name__}: {error}")
         return
-    # Send custom errors raised by commands
+    # Overridden global error handling
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"{pingu.icons['fail']} Stop! You violated the law. Wait {error.retry_after:.02f} seconds.")
+    # Used as a catch-all formatter to add an "x" icon in front of most error messages
+    # e.g. BadArgument
     elif isinstance(error, commands.CommandError):
         log.info(f"{type(error).__name__}: {error}")
         await ctx.send(f"{pingu.icons['fail']} {error}")
-        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
 if __name__ == "__main__":

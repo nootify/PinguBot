@@ -60,10 +60,10 @@ class Clown(commands.Cog):
     async def prepare_clown(self, ctx):
         # Prepares necessary conditions to connect to the voice channel
         if ctx.guild.id not in self.server_clowns or self.server_clowns[ctx.guild.id] is None:
-            raise commands.CommandError(f"{self.bot.icons['fail']} No clown was set.")
+            raise commands.BadArgument("No clown was set.")
         elif ctx.voice_client is None:
             if ctx.author.voice is None:
-                raise commands.CommandError(f"{self.bot.icons['fail']} You are not connected to a voice channel.")
+                raise commands.BadArgument("You are not connected to a voice channel.")
             else:
                 # Custom permission checker because the library does not have built-in support
                 # for voice channels. You cannot use @commands.bot_has_permissions(...) decorators.
@@ -73,7 +73,7 @@ class Clown(commands.Cog):
                 if self_permissions.connect and self_permissions.speak:
                     await ctx.author.voice.channel.connect()
                 else:
-                    raise commands.CommandError(f"{self.bot.icons['fail']} Missing permissions to speak/connect to the voice channel.")
+                    raise commands.BotMissingPermissions(f"Missing permissions to speak/connect to the voice channel.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 
