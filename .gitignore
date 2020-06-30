@@ -2,6 +2,9 @@
 ignore
 pingutoken.py
 
+# Images generated from createImage script
+pingubot-build.tar.gz
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
