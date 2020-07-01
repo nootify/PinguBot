@@ -25,7 +25,7 @@ class Schedules(commands.Cog):
     @tasks.loop(minutes=60)
     async def schedule_updater(self):
         filtered_years = ["2019", "2020"]
-        self.log.info(f"Running course schedule updater for the following year(s): {', '.join(filtered_years)}...")
+        self.log.info(f"Running course schedule updater for the following year(s): {', '.join(filtered_years)}")
         try:
             timeout = aiohttp.ClientTimeout(total=60.0)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -87,8 +87,13 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, requested_course: str, *, requested_semester=None):
+    async def get_course(self, ctx, requested_display: str, requested_course: str, *, requested_semester=None):
         """Retrieves information about a course based on the semester"""
+        display_types = ["less", "full"]
+        if requested_display.lower() not in display_types:
+            raise commands.BadArgument(f"Invalid display format.\n"
+                                       f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
+
         if len(self.bot.njit_course_schedules) == 0:
             raise commands.BadArgument("Course data was not retrieved. Try again later.")
 
@@ -138,67 +143,116 @@ class Schedules(commands.Cog):
         if len(matches) == 0:
             raise commands.BadArgument("Specified course was not found.")
 
+        # Format to desktop users (shows complete information)
         # Semester info (header)
-        course_titles = set(match["TITLE"] for match in matches)
-        output = f":calendar_spiral: {self.selected_semester} - {requested_course} ({' / '.join(course_titles)})\n"
-        # Course schedules (body header)
-        SECTION_PADDING = 9
-        INSTRUCTOR_PADDING = max(len(section["INSTRUCTOR"]) for section in matches) + 2
-        SEATS_PADDING = 7
-        TYPE_PADDING = max(len(section["INSTRUCTIONMETHOD"]) for section in matches) + 2
-        if INSTRUCTOR_PADDING < (len("<No Instructor>") + 2):  # Fixes rare formatting issue
-            INSTRUCTOR_PADDING = len("<No Instructor>") + 2
-        output += "```"
-        output += (f"{'SECTION'.ljust(SECTION_PADDING)}"
-                   f"{'INSTRUCTOR'.ljust(INSTRUCTOR_PADDING)}"
-                   f"{'SEATS'.ljust(SEATS_PADDING)}"
-                   f"{'TYPE'.ljust(TYPE_PADDING)}"
-                   f"MEETING TIMES\n")
-        # Course schedules (body content)
-        for section in matches:
-            # If there is too much data stored, empty buffer and split into multiple messages
-            if len(output) >= 1800:
-                output += "```"  # End previous code block
-                await ctx.send(output)
-                await asyncio.sleep(1.0)
-                output = "```"  # Create new code block
+        if requested_display == "full":
+            course_titles = set(match["TITLE"] for match in matches)
+            output = f":calendar_spiral: {self.selected_semester} - {requested_course} ({' / '.join(course_titles)})\n"
+            # Course schedules (body header)
+            SECTION_PADDING = 9
+            INSTRUCTOR_PADDING = max(len(section["INSTRUCTOR"]) for section in matches) + 2
+            SEATS_PADDING = 7
+            TYPE_PADDING = max(len(section["INSTRUCTIONMETHOD"]) for section in matches) + 2
+            if INSTRUCTOR_PADDING < (len("<No Instructor>") + 2):  # Fixes rare formatting issue
+                INSTRUCTOR_PADDING = len("<No Instructor>") + 2
+            output += "```"
+            output += (f"{'SECTION'.ljust(SECTION_PADDING)}"
+                       f"{'INSTRUCTOR'.ljust(INSTRUCTOR_PADDING)}"
+                       f"{'SEATS'.ljust(SEATS_PADDING)}"
+                       f"{'TYPE'.ljust(TYPE_PADDING)}"
+                       f"MEETING TIMES\n")
+            # Course schedules (body content)
+            for section in matches:
+                # If there is too much data stored, empty buffer and split into multiple messages
+                if len(output) >= 1800:
+                    output += "```"  # End previous code block
+                    await ctx.send(output)
+                    await asyncio.sleep(1.0)
+                    output = "```"  # Create new code block
 
-            # Catch sections without an assigned instructor and replace it with a placeholder name
-            if section["INSTRUCTOR"] == ", ":
-                section["INSTRUCTOR"] = "<No Instructor>"
+                # Catch sections without an assigned instructor and replace it with a placeholder name
+                if section["INSTRUCTOR"] == ", ":
+                    section["INSTRUCTOR"] = "<No Instructor>"
 
-            # Get meeting times of a particular section
-            if "Schedule" in section:
-                schedule_data = section["Schedule"]
-            else:
-                schedule_data = None  # Special high-school only sections sometimes appear in the course list
-            if type(schedule_data) == list:
-                # Format times to standard 12-hour instead of 24-hour
-                schedule_output = ", ".join(f"{schedule['MTG_DAYS']}:"
-                                            f" {datetime.strptime(schedule['START_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                            f" - {datetime.strptime(schedule['END_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                            for schedule in schedule_data)
-            elif type(schedule_data) == dict and len(schedule_data) > 1:
-                schedule_output = (f"{schedule_data['MTG_DAYS']}:"
-                                   f" {datetime.strptime(schedule_data['START_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                   f" - {datetime.strptime(schedule_data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
-            else:
-                # If no meeting times are found, replace with a placeholder line
-                schedule_output = "-------------"
+                # Get meeting times of a particular section
+                if "Schedule" in section:
+                    schedule_data = section["Schedule"]
+                else:
+                    schedule_data = None  # Special high-school only sections sometimes appear in the course list
+                if type(schedule_data) == list:
+                    # Format times to standard 12-hour instead of 24-hour
+                    schedule_output = ", ".join(f"{schedule['MTG_DAYS']}:"
+                                                f" {datetime.strptime(schedule['START_TIME'], '%H%M').strftime('%I:%M %p')}"
+                                                f" - {datetime.strptime(schedule['END_TIME'], '%H%M').strftime('%I:%M %p')}"
+                                                for schedule in schedule_data)
+                elif type(schedule_data) == dict and len(schedule_data) > 1:
+                    schedule_output = (f"{schedule_data['MTG_DAYS']}:"
+                                       f" {datetime.strptime(schedule_data['START_TIME'], '%H%M').strftime('%I:%M %p')}"
+                                       f" - {datetime.strptime(schedule_data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
+                else:
+                    # If no meeting times are found, replace with a placeholder line
+                    schedule_output = "-------------"
 
-            # Format retrieved information into human readable form
-            output += (f"{section['SECTION'].ljust(SECTION_PADDING)}"
-                       f"{section['INSTRUCTOR'].ljust(INSTRUCTOR_PADDING)}"
-                       f"{int(section['ENROLLED']):02d}/{int(section['CAPACITY']):02d}  "
-                       f"{section['INSTRUCTIONMETHOD'].ljust(TYPE_PADDING)}"
-                       f"{schedule_output}\n")
-        output += "```"
-        await ctx.send(output)
+                # Format retrieved information into human readable form
+                output += (f"{section['SECTION'].ljust(SECTION_PADDING)}"
+                           f"{section['INSTRUCTOR'].ljust(INSTRUCTOR_PADDING)}"
+                           f"{int(section['ENROLLED']):02d}/{int(section['CAPACITY']):02d}  "
+                           f"{section['INSTRUCTIONMETHOD'].ljust(TYPE_PADDING)}"
+                           f"{schedule_output}\n")
+            output += "```"
+            await ctx.send(output)
+        # Format to mobile users (shows compacted information)
+        # Semester info (header)
+        elif requested_display == "less":
+            course_title = list(set(match["TITLE"] for match in matches if "honors" not in match["TITLE"].lower()))
+            output = f":calendar_spiral: {self.selected_semester} - {requested_course}\n({course_title[0]})\n"
+
+            def squeeze_name(name: str) -> str:
+                """Used to condense the first name to its initial."""
+                if name == "<No Instructor>" or name == ", ":
+                    return name
+                else:
+                    last_name, first_name = name.split(", ")
+                    compacted_name = f"{last_name}, {first_name[0]}."
+                    return compacted_name[:19]
+
+            # Course schedules (body header)
+            SECTION_PADDING = 5
+            INSTRUCTOR_PADDING = max(len(squeeze_name(section["INSTRUCTOR"])) for section in matches) + 1
+            if INSTRUCTOR_PADDING < (len("<No Instructor>") + 1):  # Fixes rare formatting issues
+                INSTRUCTOR_PADDING = len("<No Instructor>") + 1
+            output += "```"
+            output += (f"{'SEC.'.ljust(SECTION_PADDING)}"
+                       f"{'INSTRUCTOR'.ljust(INSTRUCTOR_PADDING)}"
+                       f"SEATS\n")
+            # Course schedules (body content)
+            for section in matches:
+                # If there is too much data stored, empty buffer and split into multiple messages
+                if len(output) >= 1800:
+                    output += "```"  # End previous code block
+                    await ctx.send(output)
+                    await asyncio.sleep(1.0)
+                    output = "```"  # Create new code block
+
+                # Catch sections without an assigned instructor and replace it with a placeholder name
+                if section["INSTRUCTOR"] == ", ":
+                    section["INSTRUCTOR"] = "<No Instructor>"
+
+                # Format retrieved information into human readable form
+                output += (f"{section['SECTION'].ljust(SECTION_PADDING)}"
+                           f"{squeeze_name(section['INSTRUCTOR']).ljust(INSTRUCTOR_PADDING)}"
+                           f"{int(section['ENROLLED']):02d}/{int(section['CAPACITY']):02d}\n")
+            output += "```"
+            await ctx.send(output)
 
     @get_course.error
     async def get_course_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f"{self.bot.icons['fail']} No course was specified.")
+            if error.param.name == "requested_display":
+                await ctx.send(f"{self.bot.icons['fail']} No display format was specified.\n"
+                               f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
+            else:
+                await ctx.send(f"{self.bot.icons['fail']} No course was specified.")
 
 
 def setup(bot):

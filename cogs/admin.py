@@ -39,7 +39,7 @@ class Admin(commands.Cog):
             await ctx.send(f"{self.bot.icons['fail']} Shutdown attempt timed out.")
         else:
             # Respond as necessary to the input
-            user_response = response.content
+            user_response = response.content.lower()
             if user_response == "y" or user_response == "yes":
                 await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
                 await self.bot.close()

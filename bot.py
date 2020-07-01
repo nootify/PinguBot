@@ -7,5 +7,5 @@ default = {"activity": discord.Activity(type=discord.ActivityType.watching, name
            "prefix": "%",
            "status": discord.Status.online}
 token = pingutoken.secret
-cogs = ["admin", "clown", "help", "schedules"]
+cogs = ["admin", "clown", "help"]
 version = "0.0.2"

@@ -42,7 +42,9 @@ class PinguHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog):
-        embed = discord.Embed(title=f"{cog.qualified_name} Module Commands", colour=self.COLOUR, timestamp=datetime.utcnow())
+        embed = discord.Embed(title=f"{cog.qualified_name} Module Commands",
+                              colour=self.COLOUR,
+                              timestamp=datetime.utcnow())
         if cog.description:
             embed.description = cog.description
 

@@ -90,8 +90,12 @@ async def on_command_error(ctx, error):
     # Overridden global error handling
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"{pingu.icons['fail']} Stop! You violated the law. Wait {error.retry_after:.02f} seconds.")
-    # Used as a catch-all formatter to add an "x" icon in front of most error messages
-    # e.g. BadArgument
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send(f"{pingu.icons['fail']} I'm missing the `{'`, `'.join(error.missing_perms)}` permission(s)"
+                       f" for the server.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send(f"{pingu.icons['fail']} {error}")
+    # Used as a catch-all formatter to add an "x" icon in front of unspecified CommandError messages
     elif isinstance(error, commands.CommandError):
         log.info(f"{type(error).__name__}: {error}")
         await ctx.send(f"{pingu.icons['fail']} {error}")
