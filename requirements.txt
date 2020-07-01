@@ -1,5 +1,5 @@
 ###### Requirements without Version Specifiers ######`
-discord.py
+discord.py[voice]
 youtube_dl
 psutil
 
