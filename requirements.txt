@@ -1,0 +1,7 @@
+###### Requirements without Version Specifiers ######`
+discord.py[voice]
+youtube_dl
+psutil
+
+###### Requirements with Version Specifiers ######`
+coverage != 3.5             # Version Exclusion. Anything except version 3.5
