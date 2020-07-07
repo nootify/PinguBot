@@ -2,6 +2,7 @@
 discord.py[voice]
 youtube_dl
 psutil
+pytz
 
 ###### Requirements with Version Specifiers ######`
 coverage != 3.5             # Version Exclusion. Anything except version 3.5

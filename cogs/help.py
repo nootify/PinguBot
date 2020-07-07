@@ -13,8 +13,7 @@ class PinguHelp(commands.HelpCommand):
     COLOUR = discord.Colour.from_rgb(138, 181, 252)
 
     def get_description(self):
-        return f"Type {self.clean_prefix}{self.invoked_with} <module> for more info on a module or\n" \
-               f"{self.clean_prefix}{self.invoked_with} <command> for more info on a specific command."
+        return f"Type {self.clean_prefix}{self.invoked_with} <command> for more info on a specific command."
 
     def get_command_signature(self, command):
         return f"{command.qualified_name} {command.signature}"
