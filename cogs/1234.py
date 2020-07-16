@@ -8,6 +8,7 @@ from pytz import timezone
 
 
 class Alert1234(commands.Cog):
+    # pylint: disable=no-member
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)

@@ -2,6 +2,9 @@
 ignore
 pingutoken.py
 
+# IDE related files
+.vscode
+
 # Images generated from createImage script
 pingubot-build.tar.gz
 
@@ -116,7 +119,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-linux-venv/
 
 # Spyder project settings
 .spyderproject
