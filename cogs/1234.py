@@ -8,7 +8,6 @@ from pytz import timezone
 
 
 class Alert1234(commands.Cog):
-    # pylint: disable=no-member
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ class Alert1234(commands.Cog):
         self.log.info("Cog unloaded; stopping 1234 and resetting message location to nowhere")
         self.message_location = None
         self.sent_message = None
-        self.message_1234.cancel()
+        self.message_1234.cancel() # pylint: disable=no-member
 
     @commands.command(name="1234", hidden=True)
     async def set_1234(self, ctx, requested_guild_id=None, requested_channel_id=None):
@@ -72,18 +71,18 @@ class Alert1234(commands.Cog):
             raise commands.BadArgument("Missing permission to send messages in that channel.")
 
         # Restart the task (the following condition will be used when discord.py 1.4.0 is released)
-        # if self.message_1234.is_running():
-        #     self.message_1234.restart()
-        self.message_1234.cancel()
+        # if self.message_1234.is_running(): # pylint: disable=no-member
+        #     self.message_1234.restart() # pylint: disable=no-member
+        self.message_1234.cancel() # pylint: disable=no-member
         await asyncio.sleep(1)
-        self.message_1234.start()
+        self.message_1234.start() # pylint: disable=no-member
     
     @commands.command(name="no1234", hidden=True)
     async def stop_1234(self, ctx):
         self.log.info("Manual override to stop 1234 received; stopping task")
         self.message_location = None
         self.sent_message = None
-        self.message_1234.cancel()
+        self.message_1234.cancel() # pylint: disable=no-member
 
     @tasks.loop()
     async def message_1234(self):
@@ -124,7 +123,7 @@ class Alert1234(commands.Cog):
         else:
             self.log.error("Channel disappeared before message was sent; stopping task")
             self.message_location = None
-            self.message_1234.cancel()
+            self.message_1234.cancel() # pylint: disable=no-member
 
     @message_1234.before_loop
     async def prep_1234(self):

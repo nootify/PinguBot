@@ -15,12 +15,12 @@ class Schedules(commands.Cog):
         self.current_semester = None
         self.selected_semester = None
         self.default_endpoint = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="
-        self.schedule_updater.start()
+        self.schedule_updater.start() # pylint: disable=no-member
         self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
-        self.log.info("Cog and course schedule data unloaded from memory; course schedule updater no longer running")
-        self.schedule_updater.cancel()
+        self.log.info("Cog unloaded; cache has been removed and schedule updater is no longer running")
+        self.schedule_updater.cancel() # pylint: disable=no-member
 
     @tasks.loop(minutes=60)
     async def schedule_updater(self):
@@ -40,7 +40,7 @@ class Schedules(commands.Cog):
                         # Get all available semesters and parse it into an easier data structure
                         loaded_semesters = self.bot.njit_course_schedules["latest"]["ts"]["WSRESPONSE"]["SOAXREF"]
                         for semester in loaded_semesters:
-                            # Filter only to recent years (to prevent long loading/starting up times
+                            # Filter only to recent years (to prevent long loading/starting up times)
                             semester_year = semester["DESCRIPTION"][:4]
                             if semester_year in filtered_years:
                                 self.available_semesters[semester["DESCRIPTION"]] = semester["EDIVALUE"]
@@ -78,7 +78,7 @@ class Schedules(commands.Cog):
     # .after_loop only runs after the task is completely finished (and not looping)
     @schedule_updater.after_loop
     async def check_updater(self):
-        if self.schedule_updater.is_being_cancelled():
+        if self.schedule_updater.is_being_cancelled(): # pylint: disable=no-member
             self.available_semesters = {}
             self.current_semester = None
             self.selected_semester = None
