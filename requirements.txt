@@ -1,8 +1,10 @@
 ###### Requirements without Version Specifiers ######`
+coverage
 discord.py[voice]
-youtube_dl
 psutil
+pylint
+python-dotenv
 pytz
+youtube_dl
 
 ###### Requirements with Version Specifiers ######`
-coverage != 3.5             # Version Exclusion. Anything except version 3.5

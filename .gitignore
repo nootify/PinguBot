@@ -1,7 +1,3 @@
-# PinguBot related files
-ignore
-pingutoken.py
-
 # IDE related files
 .vscode
 
