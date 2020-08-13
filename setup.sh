@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-echo "This script will install the required packages in your current python enviornment."
+echo "This script will install the required packages in your current python environment."
 echo "A Discord bot token is also required to setup the correct bash environment."
 echo "It is highly recommended to make a virtual env (venv) to prevent package conflicts."
 printf "\n"

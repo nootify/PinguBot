@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""To use Pingu, you must first set your token in the $PINGU_TOKEN enviornment variable.
+"""To use Pingu, you must first set your token in the $PINGU_TOKEN environment variable.
 The easiest way to do this persistently is to use setup.sh and create a .env file.
 Then run pingu.py normally as you would any Python script.
 """
