@@ -11,7 +11,7 @@ import traceback
 import discord
 from discord.ext import commands
 
-import data
+import settings
 
 # Main logger to log events to the file and console
 FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
@@ -31,8 +31,8 @@ log = logging.getLogger("pingu")
 log.info("Starting Pingu instance")
 
 # Instantiate Pingu and apply default values
-pingu = commands.Bot(command_prefix=data.default["prefix"], description=data.default["desc"])
-pingu.default = data.default
+pingu = commands.Bot(command_prefix=settings.default["prefix"], description=settings.default["desc"])
+pingu.default = settings.default
 pingu.current = {"activity": pingu.default["activity"],
                  "desc": pingu.default["desc"],
                  "prefix": pingu.default["prefix"],
@@ -43,7 +43,7 @@ pingu.icons = {"fail": ":x:",
 pingu.njit_course_schedules = {}
 
 # Load the specified default modules
-for cog in data.COGS:
+for cog in settings.COGS:
     log.info("Loading cog module '%s'", cog)
     pingu.load_extension(f"cogs.{cog}")
 
@@ -68,7 +68,7 @@ async def on_ready():
                     f"Library versions being used:\n"
                     f"- Python v{platform.python_version()}\n"
                     f"- discord.py[voice] v{discord.__version__}\n"
-                    f"- Pingu v{data.VERSION}\n"
+                    f"- Pingu v{settings.VERSION}\n"
                     f"---------------------------------")
     log.debug(debug_output)
 
@@ -109,6 +109,6 @@ async def on_command_error(ctx, error):
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 if __name__ == "__main__":
-    if data.TOKEN is None:
+    if settings.TOKEN is None:
         raise ValueError("Token was not specified in $PINGU_TOKEN")
-    pingu.run(data.TOKEN)
+    pingu.run(settings.TOKEN)
