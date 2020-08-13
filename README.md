@@ -15,6 +15,9 @@ To install the dependencies manually, run the following:
 ```
 
 To create the environment needed to run the bot manually, create a `.env` file.
+
 Then paste the following inside: `PINGU_TOKEN=<Your token goes here>`
+
 Make sure to replace `<Your token goes here>` with your bot token from the Discord Developer Portal.
+
 Do not add spaces in between the `=` or else your bot will not function.
