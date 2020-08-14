@@ -1,3 +1,7 @@
+"""This module stores all of the default settings of Pingu.
+Also retrieves the token stored in the .env file.
+"""
+
 import os
 
 import discord
@@ -11,5 +15,5 @@ default = {"activity": discord.Activity(type=discord.ActivityType.watching,
            "prefix": "%",
            "status": discord.Status.online}
 TOKEN = os.environ.get("PINGU_TOKEN")
-COGS = ["admin", "clown", "help", "1234"]
-VERSION = "0.0.2"
+COGS = ["admin", "clown", "help", "alert1234"]
+VERSION = "0.0.3"

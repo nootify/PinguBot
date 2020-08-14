@@ -1,3 +1,4 @@
+"""This module houses an alternative to the official NJIT course catalog browser."""
 import asyncio
 import json
 import logging
@@ -256,4 +257,5 @@ class Schedules(commands.Cog):
 
 
 def setup(bot):
+    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Schedules(bot))

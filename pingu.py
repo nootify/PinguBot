@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """To use Pingu, you must first set your token in the $PINGU_TOKEN environment variable.
-The easiest way to do this persistently is to use setup.sh and create a .env file.
-Then run pingu.py normally as you would any Python script.
+The easiest way to do this persistently is to create a .env file and store it there.
+Afterwards, run pingu.py normally as you would any Python script.
 """
 import logging
 import platform
@@ -31,7 +31,8 @@ log = logging.getLogger("pingu")
 log.info("Starting Pingu instance")
 
 # Instantiate Pingu and apply default values
-pingu = commands.Bot(command_prefix=settings.default["prefix"], description=settings.default["desc"])
+pingu = commands.Bot(command_prefix=settings.default["prefix"],
+                     description=settings.default["desc"])
 pingu.default = settings.default
 pingu.current = {"activity": pingu.default["activity"],
                  "desc": pingu.default["desc"],
@@ -49,9 +50,11 @@ for cog in settings.COGS:
 
 @pingu.event
 async def on_ready():
-    """Prints information about the token being used, simple statistics of the bot
-    being used, and the versions of the dependencies being used. Also sets one other
-    default parameter of the bot.
+    """Prints debug information about the token, bot usage, and the dependencies being used.
+    Also sets the bot's presence on Discord.
+
+    Warning: The ready state can be triggered multiple times due to the way the library
+    handles connections.
     """
     total_servers = len(pingu.guilds)
     total_users = len(set(pingu.get_all_members()))

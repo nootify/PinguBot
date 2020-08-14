@@ -1,3 +1,7 @@
+"""This module is reserved for debugging purposes. Only the token owner may access any of the
+commands. It's dangerous to allow everyone to access these, which is why the restriction is in
+place.
+"""
 import asyncio
 import logging
 import os
@@ -10,11 +14,12 @@ from psutil._common import bytes2human
 
 
 class Admin(commands.Cog):
+    """Useful internal debugging tools for a bot developer"""
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
 
-    async def cog_check(self, ctx):
+    async def cog_check(self, ctx): # pylint: disable=invalid-overridden-method
         """Checks if the user is the bot owner for every command.
         Note: The built-in method Bot.is_owner() is a coroutine and must be awaited.
         """
@@ -40,11 +45,11 @@ class Admin(commands.Cog):
         else:
             # Respond as necessary to the input
             user_response = response.content.lower()
-            if user_response == "y" or user_response == "yes":
-                await ctx.send(f"{self.bot.icons['success']} Confirmation received. Attempting shutdown...")
+            if user_response in ("y", "yes"):
+                await ctx.send(f"{self.bot.icons['success']} Attempting shutdown...")
                 await self.bot.close()
-                self.log.warning(f"Shutdown issued in server '{ctx.guild}' (id: {ctx.guild.id})"
-                                 f" by user '{ctx.message.author}' (id: {ctx.message.author.id}).")
+                self.log.warning("Shutdown issued in server '%s' (id: %s) by user '%s' (id: %s).",
+                                 ctx.guild, ctx.guild.id, ctx.message.author, ctx.message.author.id)
             else:
                 await ctx.send(f"{self.bot.icons['fail']} Shutdown aborted by user.")
 
@@ -70,14 +75,15 @@ class Admin(commands.Cog):
     async def debug_bot(self, ctx, *, expression: str):
         """Allows access to internal variables for debugging purposes."""
         try:
-            result = eval(expression)
-        except Exception as e:
-            await ctx.send(f"{self.bot.icons['fail']} {type(e).__name__}: {e}")
+            result = eval(expression)  # pylint: disable=eval-used
+        except Exception as exc:  # pylint: disable=broad-except
+            await ctx.send(f"{self.bot.icons['fail']} {type(exc).__name__}: {exc}")
         else:
             await ctx.send(f"{self.bot.icons['info']} {result}")
 
     @commands.command(name="usage", hidden=True)
     async def debug_info(self, ctx):
+        """Show at-a-glance information about the machine hosting Pingu."""
         cpu_usage = f"{psutil.cpu_percent():.02f}%"
         memory_usage = f"{bytes2human(psutil.virtual_memory().used)}"
         total_memory = f"{bytes2human(psutil.virtual_memory().total)}"
@@ -91,4 +97,5 @@ class Admin(commands.Cog):
 
 
 def setup(bot):
+    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Admin(bot))

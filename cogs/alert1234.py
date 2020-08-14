@@ -1,3 +1,4 @@
+"""12:34"""
 import asyncio
 import logging
 from datetime import datetime, timedelta
@@ -8,13 +9,15 @@ from pytz import timezone
 
 
 class Alert1234(commands.Cog):
+    """You already know what this does 👀"""
+    # pylint: disable=line-too-long
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
         self.message_location = None  # Singular location and not per-guild because it's by design
         self.sent_message = None
 
-    async def cog_check(self, ctx):
+    async def cog_check(self, ctx): # pylint: disable=invalid-overridden-method
         return await self.bot.is_owner(ctx.author)
 
     def cog_unload(self):
@@ -25,7 +28,8 @@ class Alert1234(commands.Cog):
 
     @commands.command(name="1234", hidden=True)
     async def set_1234(self, ctx, requested_guild_id=None, requested_channel_id=None):
-        # Temporary variable to compare with cog-level location
+        """Sets the location of where to send 12:34."""
+        # Temporary variable to compare with the cog level location
         preliminary_location = None
 
         # Parse the location to send the message
@@ -51,17 +55,19 @@ class Alert1234(commands.Cog):
             if selected_guild is None:
                 self.log.error("Unable to find requested server")
                 raise commands.BadArgument("Unable to find requested server")
-            self.log.info(f"Found requested server (id: {selected_guild.id}, name: {selected_guild.name})")
+            self.log.info("Found requested server (id: %s, name: %s)",
+                          selected_guild.id, selected_guild.name)
 
             # Search for the channel using its ID
             selected_channel = selected_guild.get_channel(requested_channel_id)
             if selected_channel is None:
                 self.log.error("Unable to find requested channel")
                 raise commands.BadArgument("Specified text channel does not exist or read permission(s) were not given")
-            self.log.info(f"Found requested text channel (id: {selected_channel.id}, name: {selected_channel.name})")
+            self.log.info("Found requested text channel (id: %s, name: %s)",
+                          selected_channel.id, selected_channel.name)
 
             preliminary_location = selected_channel
-        
+
         self.message_location = preliminary_location
 
         # Check the channel permissions
@@ -71,14 +77,16 @@ class Alert1234(commands.Cog):
             raise commands.BadArgument("Missing permission to send messages in that channel.")
 
         # Restart the task (the following condition will be used when discord.py 1.4.0 is released)
-        # if self.message_1234.is_running(): # pylint: disable=no-member
-        #     self.message_1234.restart() # pylint: disable=no-member
-        self.message_1234.cancel() # pylint: disable=no-member
-        await asyncio.sleep(1)
-        self.message_1234.start() # pylint: disable=no-member
-    
+        if self.message_1234.is_running(): # pylint: disable=no-member
+            self.message_1234.restart() # pylint: disable=no-member
+        # self.message_1234.cancel() # pylint: disable=no-member
+        # await asyncio.sleep(1)
+        else:
+            self.message_1234.start() # pylint: disable=no-member
+
     @commands.command(name="no1234", hidden=True)
-    async def stop_1234(self, ctx):
+    async def stop_1234(self, ctx): # pylint: disable=unused-argument
+        """Manually stop the 1234 alerting task."""
         self.log.info("Manual override to stop 1234 received; stopping task")
         self.message_location = None
         self.sent_message = None
@@ -86,6 +94,7 @@ class Alert1234(commands.Cog):
 
     @tasks.loop()
     async def message_1234(self):
+        """Become the King of 12:34 in a channel. Complains if admin abuse is detected."""
         # Python times, timezones, and daylight savings is hard
         utc = timezone("UTC")
         eastern = timezone("America/New_York")  # Accounts for daylight savings ("US/Eastern" is EST only)
@@ -97,28 +106,28 @@ class Alert1234(commands.Cog):
 
             debug_mode = False
             if debug_mode:
-                self.log.info(f"UTC: {now.astimezone(utc)} | Eastern: {now.astimezone(eastern)}")
-                self.log.info(f"UTC: {today_12am.astimezone(utc)} | Eastern: {today_12am.astimezone(eastern)}")
-                self.log.info(f"UTC: {today_12pm.astimezone(utc)} | Eastern: {today_12pm.astimezone(eastern)}")
-                self.log.info(f"UTC: {tomorrow_12am.astimezone(utc)} | Eastern: {tomorrow_12am.astimezone(eastern)}")
-                self.log.info("DEBUG MODE ENABLED: Firing in the next 3 seconds")
-                await asyncio.sleep(60)
+                wait_this_long = 60
+                self.log.info("UTC: %s | Eastern: %s", now.astimezone(utc), now.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s", today_12am.astimezone(utc), today_12am.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s", today_12pm.astimezone(utc), today_12pm.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s", tomorrow_12am.astimezone(utc), tomorrow_12am.astimezone(eastern))
+                self.log.warning("DEBUG MODE ENABLED: Firing in the next %s seconds", wait_this_long)
+                await asyncio.sleep(wait_this_long)
             elif now <= today_12am:
                 wait = (today_12am - now).total_seconds()
-                self.log.info(f"Sending message at 12:34 AM ({str(timedelta(seconds=round(wait)))} left)")
+                self.log.info("Sending message at 12:34 AM (%s left)", str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(today_12am)
             elif now <= today_12pm:
                 wait = (today_12pm - now).total_seconds()
-                self.log.info(f"Sending message at 12:34 PM ({str(timedelta(seconds=round(wait)))} left)")
+                self.log.info("Sending message at 12:34 PM (%s left)", str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(today_12pm)
             else:
                 wait = (tomorrow_12am - now).total_seconds()
-                self.log.info(f"Sending message at 12:34 AM tomorrow ({str(timedelta(seconds=round(wait)))} left)")
+                self.log.info("Sending message at 12:34 AM tomorrow (%s left)", str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(tomorrow_12am)
-        
+
         if self.bot.get_channel(self.message_location.id) is not None:
-            self.log.info(f"Sending message to text channel"
-                          f" (id: {self.message_location.id}, name: {self.message_location.name})")
+            self.log.info("Sending message to text channel (id: %s, name: %s)", self.message_location.id, self.message_location.name)
             self.sent_message = await self.message_location.send("12:34")
         else:
             self.log.error("Channel disappeared before message was sent; stopping task")
@@ -127,10 +136,12 @@ class Alert1234(commands.Cog):
 
     @message_1234.before_loop
     async def prep_1234(self):
+        """Stop the task from running until Pingu is in the ready state."""
         await self.bot.wait_until_ready()
-    
+
     @commands.Cog.listener()
     async def on_message_delete(self, message):
+        """Sense if someone with moderator powers deletes 12:34"""
         if self.sent_message is not None and self.sent_message.id == message.id:
             message_guild = message.guild
             message_deleter = None
@@ -151,4 +162,5 @@ class Alert1234(commands.Cog):
 
 
 def setup(bot):
+    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Alert1234(bot))
