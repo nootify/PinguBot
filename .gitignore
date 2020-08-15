@@ -1,3 +1,6 @@
+# Pingu cache files
+cache/*
+
 # IDE related files
 .vscode
 

@@ -41,7 +41,6 @@ pingu.current = {"activity": pingu.default["activity"],
 pingu.icons = {"fail": ":x:",
                "info": ":information_source:",
                "success": ":white_check_mark:"}
-pingu.njit_course_schedules = {}
 
 # Load the specified default modules
 for cog in settings.COGS:
