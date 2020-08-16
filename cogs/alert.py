@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 from pytz import timezone
 
 
-class Alert1234(commands.Cog):
+class Alert(commands.Cog):
     """You already know what this does 👀"""
     # pylint: disable=line-too-long
     def __init__(self, bot):
@@ -163,4 +163,4 @@ class Alert1234(commands.Cog):
 
 def setup(bot):
     """Adds this module in as a cog to Pingu."""
-    bot.add_cog(Alert1234(bot))
+    bot.add_cog(Alert(bot))

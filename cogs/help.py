@@ -25,7 +25,7 @@ class PinguHelp(commands.HelpCommand):
 
     # Display a list of available commands of each loaded cog
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title="Pingu Modules",
+        embed = discord.Embed(title="Pingu Commands",
                               colour=self.COLOUR,
                               timestamp=datetime.utcnow())
         embed.description = self.get_description()
@@ -38,9 +38,12 @@ class PinguHelp(commands.HelpCommand):
             if cog and cog.description:
                 # Sort the commands in a module
                 filtered_commands = await self.filter_commands(available_commands, sort=True)
-                # Better than using a for loop and then stripping off the last comma
-                desc = (f"*{cog.description}*\n"
-                        f"Commands: `{'`, `'.join(command.name for command in filtered_commands)}`")
+                if filtered_commands:
+                    # Better than using a for loop and then stripping off the last comma
+                    desc = (f"*{cog.description}*\n"
+                            f"Commands: `{'`, `'.join(command.name for command in filtered_commands)}`")
+                else:
+                    desc = f"*{cog.description}*"
                 embed.add_field(name=cog_name, value=desc, inline=False)
 
         # embed.set_author(name="Pingu Commands", icon_url="")

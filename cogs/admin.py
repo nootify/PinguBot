@@ -14,7 +14,7 @@ from psutil._common import bytes2human
 
 
 class Admin(commands.Cog):
-    """Useful internal debugging tools for a bot developer"""
+    """Only a true noot noot can use this"""
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
