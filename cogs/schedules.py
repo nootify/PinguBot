@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import aiofiles
 import aiohttp
@@ -14,12 +14,10 @@ class Schedules(commands.Cog):
     """Information about courses at NJIT"""
     def __init__(self, bot):
         self.bot = bot
-        self.available_semesters = None
-        self.current_semester = None
-        self.base_dirname = "cache"
         self.base_endpoint = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term=" # pylint: disable=line-too-long
-        self.base_filename = "scheduledata.json"
+        self.current_semester = None
         self.schedule_data = None
+        self.semester_codes = None
         self.schedule_updater.add_exception_type(FileNotFoundError) # pylint: disable=no-member
         self.schedule_updater.start() # pylint: disable=no-member
         self.log = logging.getLogger(__name__)
@@ -28,11 +26,16 @@ class Schedules(commands.Cog):
         self.schedule_updater.cancel() # pylint: disable=no-member
         self.log.info("Cog unloaded; schedule updater no longer running")
 
-    @tasks.loop(minutes=60)
+    @tasks.loop(minutes=15)
     async def schedule_updater(self):
         """Retrieves schedule data from the current and previous semester."""
-        async def update_cache_file(filename: str, endpoint: str):
-            """Updates the main cache file with the latest response from the endpoint."""
+
+        async def update_cache_file(filename: str, endpoint: str) -> None:
+            """Updates the requested cache file with the latest response from the endpoint.
+
+            :param str filename: Location of the cache file
+            :param str endpoint: URL to request the cache from
+            """
             try:
                 timeout = aiohttp.ClientTimeout(total=30)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -43,55 +46,93 @@ class Schedules(commands.Cog):
                             async with aiofiles.open(filename, "w") as cache_file:
                                 await cache_file.write(data)
                         else:
-                            self.log.error("Could not retrieve data for cache file '%s'; NJIT endpoint responded with HTTP %s", filename, response.status)
-            except Exception as exc:
-                self.log.error("%s: %s", type(exc).__name__, exc)
+                            self.log.error(
+                                "Could not retrieve data for '%s'; endpoint responded with HTTP %s",
+                                filename,
+                                response.status)
+            except Exception as exc: # pylint: disable=broad-except
+                self.log.error("Could not update cache file: %s: %s", type(exc).__name__, exc)
             else:
                 self.log.info("Cache file '%s' updated with latest data", filename)
 
-        async def check_cache_file(filename: str, endpoint: str):
-            """Check the state of the cache file on disk, then perform actions as necessary."""
+        async def check_cache_file(filename: str, endpoint: str) -> None:
+            """Check the state of the cache file on disk, then perform actions as necessary.
+
+            :param str filename: Location of the cache file
+            :param str endpoint: URL to request the cache from
+            """
             if os.path.exists(filename):
-                self.log.info("Cache file '%s' found", filename)
                 now = datetime.now()
-                cache_file_timestamp = os.path.getmtime(filename)
-                cache_file_datetime = datetime.utcfromtimestamp(cache_file_timestamp)
-                # Only send a request if the cache is an hour old or older
-                if (cache_file_datetime + timedelta(hours=1)) <= now:
+                cache_file_time = datetime.fromtimestamp(os.path.getmtime(filename))
+                last_updated = (now - cache_file_time).total_seconds()
+                # print(last_updated)
+                # Only send a request if the cached file is an hour old or older (3600+ seconds)
+                if last_updated >= 3600:
                     self.log.info("Cache file '%s' is stale; updating schedule data", filename)
                     await update_cache_file(filename, endpoint)
                 else:
-                    self.log.info("Cache file '%s' is too fresh; not updating schedule data", filename)
+                    self.log.info("Cache file '%s' is too fresh; keeping current schedule data",
+                                  filename)
             else:
                 self.log.info("Cache file '%s' not found; downloading schedule data", filename)
                 await update_cache_file(filename, endpoint)
 
+        async def update_cache_memory(filename: str, memory_location: str) -> None:
+            """Load and parse a cache file into memory.
+
+            :param str filename: Location of the cache file
+            :param str memory_location: The key used to store the data in memory
+            """
+            async with aiofiles.open(filename, "r") as cache_file:
+                # json.loads requires bytes/string data
+                # json.load requires a file object
+                data = await cache_file.read()
+                if self.schedule_data is None:
+                    self.schedule_data = {memory_location: json.loads(data)}
+                else:
+                    self.schedule_data[memory_location] = json.loads(data)
+                self.log.info("Cache file '%s' loaded into '%s'", filename, memory_location)
+
+        async def update_cache(filename: str, endpoint: str, memory_location: str) -> None:
+            """Helper function that combines all of the previous subroutines.
+            Also updates the semester code table and moves the "latest" cache file
+            to its correct location.
+
+            :param str filename: Location of the cache file
+            :param str endpoint: URL to request the cache from
+            :param str memory_location: The key specifying where to store the JSON in memory
+            """
+            await check_cache_file(filename, endpoint)
+            await update_cache_memory(filename, memory_location)
+            if memory_location == "latest":
+                # Refresh the semester code lookup table
+                loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"]["SOAXREF"] # pylint: disable=line-too-long
+                self.current_semester = str(self.schedule_data[memory_location]["ct"])
+                self.semester_codes = {semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
+                                       for semester in loaded_semesters}
+                self.log.info("Semester code table refreshed (current semester is '%s')",
+                              self.current_semester)
+
+                # Replace the "latest" key with the actual current semester code
+                self.schedule_data[self.current_semester] = self.schedule_data.pop(memory_location)
+
         # Retrieve the schedule data for the current semester
-        reference_filename = f"{self.base_dirname}/latest-{self.base_filename}"
-        await check_cache_file(reference_filename, self.base_endpoint)
-
-        # Load and parse the cached response
-        async with aiofiles.open(reference_filename, "r") as cache_file:
-            # json.loads requires bytes/string data
-            # json.load requires a file object
-            data = await cache_file.read()
-            self.schedule_data = json.loads(data)
-            self.log.info("Schedule data for the current semester loaded into memory")
-
-        # Create the semester code lookup table
-        retrieved_semesters = self.schedule_data["ts"]["WSRESPONSE"]["SOAXREF"]
-        self.current_semester = str(self.schedule_data["ct"])
-        self.available_semesters = {sem["EDIVALUE"]: sem["DESCRIPTION"].lower() for sem in retrieved_semesters}
-        self.log.info("Semester codes and description names loaded into memory")
+        base_dirname, base_filename = "cache", "scheduledata.json"
+        latest_semester_code = "latest"
+        latest_semester_filename = f"{base_dirname}/{latest_semester_code}-{base_filename}"
+        await update_cache(latest_semester_filename, self.base_endpoint, latest_semester_code)
 
         # Retrieve the schedule data for the previous semester
-        prev_semester_code = max(sem["EDIVALUE"] for sem in retrieved_semesters if sem["EDIVALUE"] != self.current_semester)
+        loaded_semesters = self.schedule_data[self.current_semester]["ts"]["WSRESPONSE"]["SOAXREF"]
+        prev_semester_code = max(sem["EDIVALUE"] for sem in loaded_semesters
+                                 if sem["EDIVALUE"] != self.current_semester)
         prev_semester_endpoint = f"{self.base_endpoint}{prev_semester_code}"
-        prev_semester_filename = f"{self.base_dirname}/{prev_semester_code}-{self.base_filename}"
-        await check_cache_file(prev_semester_filename, prev_semester_endpoint)
+        prev_semester_filename = f"{base_dirname}/{prev_semester_code}-{base_filename}"
+        await update_cache(prev_semester_filename, prev_semester_endpoint, prev_semester_code)
 
     @schedule_updater.before_loop
     async def prepare_updater(self):
+        """Delay schedule updater until the bot is in the ready state."""
         await self.bot.wait_until_ready()
 
     # .after_loop only runs after the task is completely finished (and not looping)
@@ -99,61 +140,52 @@ class Schedules(commands.Cog):
     async def cleanup_updater(self):
         """Unload cached data from memory when the tasks ends."""
         if self.schedule_updater.is_being_cancelled(): # pylint: disable=no-member
-            self.available_semesters = None
             self.current_semester = None
             self.schedule_data = None
-            self.log.info("Clearing cached data from memory")
+            self.semester_codes = None
+            self.log.info("Cleared cached data from memory")
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, requested_display: str, requested_course: str, *, requested_semester=None):
+    async def get_course(self, ctx, req_course: str, req_display: str = "full", *, req_semester: str = None):
         """Retrieves information about a course based on the semester"""
 
         # TODO: Breakup command into submodules
         display_types = ["less", "full"]
-        if requested_display.lower() not in display_types:
+        if req_display.lower() not in display_types:
             raise commands.BadArgument(f"Invalid display format.\n"
                                        f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
 
-        if len(self.bot.njit_course_schedules) == 0:
-            raise commands.BadArgument("Course data was not retrieved. Try again later.")
-
-        # Get the current semester in human-readable form (only runs once per module load)
-        if self.current_semester is None:
-            self.current_semester = str(self.bot.njit_course_schedules["latest"]["ct"])
-            for desc, code in self.available_semesters.items():
-                if code == self.current_semester:
-                    self.current_semester = desc
-                    break
+        if len(self.schedule_data) == 0:
+            raise commands.BadArgument("Course data was not retrieved yet. Try again later.")
 
         # Check if a semester other than the latest was specified
-        if requested_semester is not None:
-            self.selected_semester = None
-            for desc, code in self.available_semesters.items():
-                if desc.lower() == requested_semester.lower():
-                    self.selected_semester = desc
-                    break
-            if self.selected_semester is None:
-                raise commands.BadArgument("Specified semester does not exist.")
-        else:
-            self.selected_semester = self.current_semester
-        self.log.info(f"{self.selected_semester} selected")
+        if req_semester is not None:
+            selected_semester = req_semester.lower()
 
-        if self.selected_semester not in self.bot.njit_course_schedules:
-            raise commands.BadArgument("Course data for this semester was not retrieved. Try again later.")
+            # Reversed the key and values of the original lookup table
+            semester_descriptions = dict((desc, code) for code, desc in self.semester_codes.items())
+            if selected_semester not in semester_descriptions:
+                raise commands.BadArgument("Specified semester does not exist.")
+
+            selected_semester = semester_descriptions[selected_semester]
+        else:
+            selected_semester = self.current_semester
+        self.log.info("'%s' was selected", selected_semester)
+
 
         # Match all sections with the given course number
         matches = []
-        requested_course = requested_course.upper()
-        course_prefix = requested_course[:-3]  # e.g. CS, HIST, YWCC, etc.
-        course_data = self.bot.njit_course_schedules[self.selected_semester]["ws"]["WSRESPONSE"]["Subject"]
+        req_course = req_course.upper()
+        course_prefix = req_course[:-3]  # e.g. CS, HIST, YWCC, etc.
+        course_data = self.schedule_data[selected_semester]["ws"]["WSRESPONSE"]["Subject"]
         for subject in course_data:
             current_subject = subject["SUBJ"]
             if course_prefix == current_subject:
                 all_courses = subject["Course"]
                 for course in all_courses:
                     course_number = course["COURSE"]
-                    if requested_course == course_number:
+                    if req_course == course_number:
                         all_sections = course["Section"]
                         # The NJIT endpoint does not have consistent structure of data
                         if isinstance(all_sections, list):
@@ -168,9 +200,9 @@ class Schedules(commands.Cog):
 
         # Format to desktop users (shows complete information)
         # Semester info (header)
-        if requested_display == "full":
+        if req_display == "full":
             course_titles = set(match["TITLE"] for match in matches)
-            output = f":calendar_spiral: {self.selected_semester} - {requested_course} ({' / '.join(course_titles)})\n"
+            output = f":calendar_spiral: {selected_semester} - {req_course} ({' / '.join(course_titles)})\n"
             # Course schedules (body header)
             SECTION_PADDING = 9
             INSTRUCTOR_PADDING = max(len(section["INSTRUCTOR"]) for section in matches) + 2
@@ -202,13 +234,13 @@ class Schedules(commands.Cog):
                     schedule_data = section["Schedule"]
                 else:
                     schedule_data = None  # Special high-school only sections sometimes appear in the course list
-                if type(schedule_data) == list:
+                if isinstance(schedule_data, list):
                     # Format times to standard 12-hour instead of 24-hour
                     schedule_output = ", ".join(f"{schedule['MTG_DAYS']}:"
                                                 f" {datetime.strptime(schedule['START_TIME'], '%H%M').strftime('%I:%M %p')}"
                                                 f" - {datetime.strptime(schedule['END_TIME'], '%H%M').strftime('%I:%M %p')}"
                                                 for schedule in schedule_data)
-                elif type(schedule_data) == dict and len(schedule_data) > 1:
+                elif isinstance(schedule_data, dict) and len(schedule_data) > 1:
                     schedule_output = (f"{schedule_data['MTG_DAYS']}:"
                                        f" {datetime.strptime(schedule_data['START_TIME'], '%H%M').strftime('%I:%M %p')}"
                                        f" - {datetime.strptime(schedule_data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
@@ -226,9 +258,9 @@ class Schedules(commands.Cog):
             await ctx.send(output)
         # Format to mobile users (shows compacted information)
         # Semester info (header)
-        elif requested_display == "less":
+        elif req_display == "less":
             course_title = list(set(match["TITLE"] for match in matches if "honors" not in match["TITLE"].lower()))
-            output = f":calendar_spiral: {self.selected_semester} - {requested_course}\n({course_title[0]})\n"
+            output = f":calendar_spiral: {selected_semester} - {req_course}\n({course_title[0]})\n"
 
             def squeeze_name(name: str) -> str:
                 """Used to condense the first name to its initial."""
@@ -271,7 +303,7 @@ class Schedules(commands.Cog):
     @get_course.error
     async def get_course_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            if error.param.name == "requested_display":
+            if error.param.name == "req_display":
                 await ctx.send(f"{self.bot.icons['fail']} No display format was specified.\n"
                                f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
             else:
