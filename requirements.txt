@@ -2,10 +2,12 @@
 aiofiles
 coverage
 discord.py[voice]
+prettytable
 psutil
 pylint
 python-dotenv
 pytz
 youtube_dl
+wheel
 
 ###### Requirements with Version Specifiers ######`
