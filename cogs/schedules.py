@@ -216,7 +216,7 @@ class Schedules(commands.Cog):
         schedule_display.align["MEETING TIMES"] = "r"
         schedule_display.left_padding_width = 1
         schedule_display.right_padding_width = 1
-        schedule_display._max_width = {"INSTRUCTOR": instructor_column_size
+        schedule_display._max_width = {"INSTRUCTOR": instructor_column_size # pylint: disable=protected-access
                                                      if instructor_column_size >= len(unknown)
                                                      else len(unknown)}
 
@@ -231,8 +231,8 @@ class Schedules(commands.Cog):
         def process_meeting_times(data):
             """Helper function that formats the meeting time hours of a section."""
             output = "-------------"
+            # Format times to standard 12-hour instead of 24-hour
             if isinstance(data, list):
-                # Format times to standard 12-hour instead of 24-hour
                 output = "\n".join(f"{meeting['MTG_DAYS']}: "
                                    f"{datetime.strptime(meeting['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
                                    f"{datetime.strptime(meeting['END_TIME'], '%H%M').strftime('%I:%M %p')}"
@@ -247,8 +247,8 @@ class Schedules(commands.Cog):
         for section in course_sections:
             instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
             seats = f'{section["ENROLLED"]}/{section["CAPACITY"]}'
-            meeting_times = process_meeting_times(section["Schedule"])
-
+            meeting_times = process_meeting_times(section["Schedule"]
+                                                  if "Schedule" in section else None)
             schedule_display.add_row([section["SECTION"],
                                       instructor,
                                       seats,

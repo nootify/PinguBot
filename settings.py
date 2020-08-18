@@ -1,11 +1,11 @@
 """This module stores all of the default settings of Pingu.
 Also retrieves the token stored in the .env file.
 """
-
 import os
 
 import discord
 from dotenv import load_dotenv
+
 
 load_dotenv()
 

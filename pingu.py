@@ -13,6 +13,7 @@ from discord.ext import commands
 
 import settings
 
+
 # Main logger to log events to the file and console
 FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
 DATEFMT = "%m-%d-%Y %I:%M:%S %p"
