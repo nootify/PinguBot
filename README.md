@@ -7,7 +7,7 @@ To run PinguBot, Python 3 and a copy of this repo is required.
 To run the automatic setup script, a Linux distro with Bash is required.
 
 ## Installation
-To automatically install and set everything, run the included `setup.sh` script.
+To automatically install and set everything, run `setup.sh` in the `scripts` directory.
 
 ### Depedencies
 To install the dependencies manually, run the following:
