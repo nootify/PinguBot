@@ -6,19 +6,41 @@ import asyncio
 import logging
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 
 class Clown(commands.Cog):
     """Stuff related to clown of the week"""
     def __init__(self, bot):
         self.bot = bot
+        self.query = None
+        self.result = None
         self.log = logging.getLogger(__name__)
+        self.send_query.start() # pylint: disable=no-member
         self.server_clowns = {}
 
     def cog_unload(self):
         self.log.info("Cog unloaded; resetting all clowns to no one")
         self.server_clowns = {}
+
+    @tasks.loop(count=1)
+    async def send_query(self):
+        """Sends a query to the PostgreSQL server."""
+        # This only happens when the module loads for the first time
+        if self.query is None:
+            self.query = "SELECT COUNT(clown) FROM clowns"
+
+        # Make sure the input is sanitized before executing queries
+        async with self.bot.db.acquire() as conn:
+            self.result = await conn.fetch(self.query)
+
+        if self.query == "SELECT COUNT(clown) FROM clowns":
+            self.log.info("%s clown(s) were found in the database", self.result[0]['count'])
+
+    @send_query.before_loop
+    async def delay_query(self):
+        """Prevents queries from executing until a database connection can be established."""
+        await self.bot.wait_until_ready()
 
     @commands.group(name="clown")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
