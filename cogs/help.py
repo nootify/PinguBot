@@ -40,8 +40,8 @@ class PinguHelp(commands.HelpCommand):
                 filtered_commands = await self.filter_commands(available_commands, sort=True)
                 if filtered_commands:
                     # Better than using a for loop and then stripping off the last comma
-                    desc = (f"*{cog.description}*\n"
-                            f"Commands: `{'`, `'.join(command.name for command in filtered_commands)}`")
+                    visible_commands = "`, `".join(command.name for command in filtered_commands)
+                    desc = f"*{cog.description}*\nCommands: `{visible_commands}`"
                 else:
                     desc = f"*{cog.description}*"
                 embed.add_field(name=cog_name, value=desc, inline=False)

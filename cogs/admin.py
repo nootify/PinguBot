@@ -13,8 +13,8 @@ from discord.ext import commands
 from psutil._common import bytes2human
 
 
-class Admin(commands.Cog):
-    """Only a true noot noot can use this"""
+class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
+    # Only a true noot noot can use this
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ class Admin(commands.Cog):
             user_response = response.content.lower()
             if user_response in ("y", "yes"):
                 await ctx.send(f"{self.bot.icons['success']} Attempting shutdown...")
+                await self.bot.db.close()
                 await self.bot.close()
                 self.log.warning("Shutdown issued in server '%s' (id: %s) by user '%s' (id: %s).",
                                  ctx.guild, ctx.guild.id, ctx.message.author, ctx.message.author.id)

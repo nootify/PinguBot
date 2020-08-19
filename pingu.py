@@ -31,6 +31,7 @@ class Pingu(commands.Bot):
         self.icons = {"fail": ":x:",
                       "info": ":information_source:",
                       "success": ":white_check_mark:"}
+        self.embed_colour = discord.Colour.from_rgb(138, 181, 252)
         self.log = logging.getLogger("pingu")
         self.log.info("Started Pingu instance")
 

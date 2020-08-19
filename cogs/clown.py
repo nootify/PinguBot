@@ -4,6 +4,7 @@ The status is kept on them for a week, hence the name.
 """
 import asyncio
 import logging
+from datetime import date, datetime, timedelta
 
 import discord
 from discord.ext import commands, tasks
@@ -13,31 +14,35 @@ class Clown(commands.Cog):
     """Stuff related to clown of the week"""
     def __init__(self, bot):
         self.bot = bot
+        self.polls = {}
         self.query = None
         self.result = None
-        self.log = logging.getLogger(__name__)
-        self.send_query.start() # pylint: disable=no-member
         self.server_clowns = {}
+        self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
-        self.log.info("Cog unloaded; resetting all clowns to no one")
-        self.server_clowns = {}
+        self.polls = None
+        self.query = None
+        self.result = None
+        self.server_clowns = None
+        self.log.info("Cog unloaded; disconnecting from voice channels")
 
     @tasks.loop(count=1)
-    async def send_query(self):
-        """Sends a query to the PostgreSQL server."""
-        # This only happens when the module loads for the first time
-        if self.query is None:
-            self.query = "SELECT COUNT(clown) FROM clowns"
-
+    async def fetch(self):
+        """Sends a fetch query to the PostgreSQL server."""
         # Make sure the input is sanitized before executing queries
         async with self.bot.db.acquire() as conn:
             self.result = await conn.fetch(self.query)
 
-        if self.query == "SELECT COUNT(clown) FROM clowns":
-            self.log.info("%s clown(s) were found in the database", self.result[0]['count'])
+    @tasks.loop(count=1)
+    async def fetch_row(self):
+        """Sends a fetch_row query to the PostgreSQL server."""
+        # Make sure the input is sanitized before executing queries
+        async with self.bot.db.acquire() as conn:
+            self.result = await conn.fetchrow(self.query)
 
-    @send_query.before_loop
+    @fetch.before_loop
+    @fetch_row.before_loop
     async def delay_query(self):
         """Prevents queries from executing until a database connection can be established."""
         await self.bot.wait_until_ready()
@@ -47,53 +52,139 @@ class Clown(commands.Cog):
     async def clown(self, ctx):
         """Shows who the clown is in a server."""
         if ctx.invoked_subcommand is None:
-            if ctx.guild.id not in self.server_clowns:
-                self.server_clowns[ctx.guild.id] = None
-            server_clown = self.server_clowns[ctx.guild.id]
-            if server_clown is None:
-                await ctx.send(f"{self.bot.icons['info']} The clown is no one.")
-            elif server_clown.nick is None:
-                await ctx.send(f"{self.bot.icons['info']} The clown is `{server_clown}`.")
-            else:
-                await ctx.send(
-                    f"{self.bot.icons['info']} The clown is `{server_clown.nick} ({server_clown})`.")
+            self.query = f"SELECT clown_id FROM clowns WHERE guild_id = {ctx.message.guild.id};"
+            self.fetch_row.start() # pylint: disable=no-member
+            while self.fetch_row.is_running(): # pylint: disable=no-member
+                await asyncio.sleep(1)
 
-    # Using the magic of Member Converter
-    # this transforms a string mention of a user into a discord Member object
-    @clown.command(name="set")
-    async def set_clown(self, ctx, mention):
-        """Sets the clown in a server to a mentioned user."""
+            # If the guild_id doesnt exist or the clown_id is NULL
+            if not self.result or not self.result["clown_id"]:
+                await ctx.send(f"{self.bot.icons['info']} The clown is no one.")
+                return
+
+            try:
+                # MemberConverter must take a string
+                server_clown = await commands.MemberConverter().convert(
+                    ctx, str(self.result["clown_id"]))
+                self.log.debug(self.result["clown_id"])
+            except commands.BadArgument:
+                raise commands.BadArgument("The clown is no longer in the server.")
+            else:
+                info_icon = self.bot.icons["info"]
+                if not server_clown.nick:
+                    await ctx.send(f"{info_icon} The clown is `{server_clown}`.")
+                else:
+                    await ctx.send(
+                        f"{info_icon} The clown is `{server_clown}` (`{server_clown.nick}`).")
+
+    @clown.command(name="nominate")
+    async def nominate_clown(self, ctx: commands.Context, mention: str, *, reason: str):
+        """Nominate someone to be clown of the week."""
+        if ctx.message.guild.id in self.polls and self.polls[ctx.message.guild.id]:
+            raise commands.BadArgument("A nomination is currently in progress.")
+        if len(reason) > 1900:
+            raise commands.BadArgument("1900 characters or less, por favor.")
+
         try:
             mention = await commands.MemberConverter().convert(ctx, mention)
         except commands.BadArgument:
-            raise commands.BadArgument("Specified user is not in the server or you didn't @ them.")
+            raise commands.BadArgument("This user is not in the server or you didn't @ them.")
 
-        if mention in ctx.guild.members:
-            if (ctx.guild.id not in self.server_clowns or
-                    self.server_clowns[ctx.guild.id] is None or
-                    self.server_clowns[ctx.guild.id].id != ctx.message.author.id):
-                self.server_clowns[ctx.guild.id] = mention
-                if mention.nick is None:
-                    await ctx.send(f"{self.bot.icons['info']} The clown is set to `{mention}`.")
-                else:
-                    await ctx.send(
-                        f"{self.bot.icons['info']} The clown is set to `{mention.nick} ({mention})`.")
-            else:
-                raise commands.BadArgument("Clowns are not allowed to do that.")
+        if mention == ctx.message.guild.me:
+            raise commands.BadArgument("Self-reference detected. Aborting command.")
 
-    @set_clown.error
-    async def set_clown_error(self, ctx, error):
-        """Error check to see if a clown was not set beforehand in a server."""
+        self.query = f"SELECT clown_id, clowned_on FROM clowns WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+        self.fetch_row.start() # pylint: disable=no-member
+        while self.fetch_row.is_running(): # pylint: disable=no-member
+            await asyncio.sleep(1)
+
+        # Prevent the clown from un-clowning themselves until a week passed
+        if (self.result and
+                (self.result["clowned_on"] + timedelta(days=7)) >= date.today() and
+                self.result["clown_id"] == ctx.message.author.id):
+            raise commands.BadArgument("Clowns are not allowed to do that.")
+
+        # Create the clown of the week nomination message
+        poll_delay = 120 # This is in seconds
+        poll_embed = discord.Embed(title="Clown of the Week Nomination",
+                                   description=f"{mention} was nominated because:\n\n{reason}",
+                                   colour=self.bot.embed_colour,
+                                   timestamp=(datetime.utcnow() + timedelta(seconds=poll_delay)))
+        poll_embed.set_author(name=f"Nomination started by: {ctx.message.author}",
+                              icon_url=ctx.author.avatar_url)
+        poll_embed.set_footer(text="Voting will end")
+
+        # Set semaphore per server and send the nomination message
+        self.polls[ctx.message.guild.id] = await ctx.send(embed=poll_embed)
+        await self.polls[ctx.message.guild.id].add_reaction("\N{white heavy check mark}")
+        await self.polls[ctx.message.guild.id].add_reaction("\N{cross mark}")
+
+        await asyncio.sleep(poll_delay)
+        # def vote_check(reaction, user):
+        #     return user == ctx.message.author and str(reaction.emoji) in ["✅", "❌"]
+
+        # Refresh message for reaction changes
+        self.polls[ctx.message.guild.id] = await ctx.message.channel.fetch_message(
+            self.polls[ctx.message.guild.id].id)
+        # Check the results of the poll
+        results = {reaction.emoji: reaction.count
+                   for reaction in self.polls[ctx.message.guild.id].reactions}
+        if results["❌"] >= results["✅"]:
+            # Undo semaphore
+            self.polls[ctx.message.guild.id] = None
+            raise commands.BadArgument("Nomination failed to gain enough votes.")
+
+        # Change the clown because enough votes were in favor of the nomination
+        if self.result:
+            self.query = f"UPDATE clowns SET clown_id = {mention.id}, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+        else:
+            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.message.guild.id}', '{mention.id}', NOW());" # pylint: disable=line-too-long
+        self.fetch_row.start() # pylint: disable=no-member
+        while self.fetch_row.is_running(): # pylint: disable=no-member
+            await asyncio.sleep(1)
+
+        # Display who the new clown is
+        if not mention.nick:
+            await ctx.send(f"{self.bot.icons['info']} The clown is now `{mention}`.")
+        else:
+            await ctx.send(
+                f"{self.bot.icons['info']} The clown is now `{mention}` (`{mention.nick}`).")
+
+        # Undo semaphore
+        self.polls[ctx.message.guild.id] = None
+
+    @nominate_clown.error
+    async def nominate_clown_error(self, ctx, error):
+        """Error check to see if a clown was not mentioned."""
+        error_icon = self.bot.icons['fail']
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f"{self.bot.icons['fail']} No clown was specified.")
+            if error.param.name == "mention":
+                await ctx.send(f"{error_icon} No candidate was specified.")
+            elif error.param.name == "reason":
+                await ctx.send(f"{error_icon} No reason was provided for the nomination.")
+            return
 
-    @clown.command(name="reset")
+    @clown.command(name="reset", hidden=True)
     async def reset_clown(self, ctx):
         """Reset the clown in a server to no one."""
-        self.server_clowns[ctx.guild.id] = None
-        await ctx.send(f"{self.bot.icons['info']} The clown is set to no one.")
+        self.query = f"SELECT clown_id, clowned_on FROM clowns WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+        self.fetch_row.start() # pylint: disable=no-member
+        while self.fetch_row.is_running(): # pylint: disable=no-member
+            await asyncio.sleep(1)
 
-    @clown.command(name="honk", case_insensitive=True)
+        # Prevent the clown from un-clowning themselves until a week passed
+        if ((self.result["clowned_on"] + timedelta(days=7)) >= date.today() and
+                self.result["clown_id"] == ctx.message.author.id):
+            raise commands.BadArgument("Clowns are not allowed to do that.")
+
+        self.query = f"UPDATE clowns SET clown_id = NULL, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+        self.fetch_row.start() # pylint: disable=no-member
+        while self.fetch_row.is_running(): # pylint: disable=no-member
+            await asyncio.sleep(1)
+
+        await ctx.send(f"{self.bot.icons['info']} The clown is now set to no one.")
+
+    @clown.command(name="honk", case_insensitive=True, hidden=True)
     @commands.bot_has_guild_permissions(connect=True, speak=True)
     async def honk(self, ctx):
         """Honk at the clown when they're in the same voice channel as you."""
