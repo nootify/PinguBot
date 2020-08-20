@@ -82,7 +82,7 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
         else:
             await ctx.send(f"{self.bot.icons['info']} {result}")
 
-    @commands.command(name="usage", hidden=True)
+    @commands.command(name="stats", hidden=True)
     async def debug_info(self, ctx):
         """Show at-a-glance information about the machine hosting Pingu."""
         cpu_usage = f"{psutil.cpu_percent():.02f}%"

@@ -126,6 +126,7 @@ class Alert(commands.Cog):
                 self.log.info("Sending message at 12:34 AM tomorrow (%s left)", str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(tomorrow_12am)
 
+        # Things could have happened in the meantime, so check again
         if self.bot.get_channel(self.message_location.id) is not None:
             self.log.info("Sending message to text channel (id: %s, name: %s)", self.message_location.id, self.message_location.name)
             self.sent_message = await self.message_location.send("12:34")
@@ -153,12 +154,11 @@ class Alert(commands.Cog):
                             message_deleter = entry.user
                             break
 
+            # Checking who deleted the message requires the Audit Log permission
             if message_deleter is None:
                 self.sent_message = await message.channel.send("Stop deleting my messages >:(")
             else:
                 self.sent_message = await message.channel.send(f"{message_deleter.mention} Stop deleting my messages >:(")
-            # Checking who deleted the message requires Audit Log permission
-            # See Guild.audit_log on rtfm for more info
 
 
 def setup(bot):
