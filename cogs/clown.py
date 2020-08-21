@@ -244,7 +244,8 @@ class Clown(commands.Cog):
                                 source=sound_file))
 
                         def cleanup(error):
-                            self.log.error("voice_client: %s", error)
+                            if error:
+                                self.log.error("voice_client: %s", error)
                             disconnect = after_cache.guild.voice_client.disconnect()
                             run = asyncio.run_coroutine_threadsafe(disconnect, self.bot.loop)
                             try:

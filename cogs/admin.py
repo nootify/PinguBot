@@ -60,24 +60,6 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
             else:
                 await ctx.send(f"{self.bot.icons['fail']} Shutdown aborted by user.")
 
-    @commands.command(name="load", hidden=True)
-    async def load_cog(self, ctx, module: str):
-        """Load a specified cog."""
-        self.bot.load_extension(f"cogs.{module}")
-        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
-
-    @commands.command(name="reload", hidden=True)
-    async def reload_cog(self, ctx, module: str):
-        """Reload a specified cog."""
-        self.bot.reload_extension(f"cogs.{module}")
-        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
-
-    @commands.command(name="unload", hidden=True)
-    async def unload_cog(self, ctx, module: str):
-        """Unload a specified cog."""
-        self.bot.unload_extension(f"cogs.{module}")
-        await ctx.send(f"{self.bot.icons['success']} Operation was successful.")
-
     @commands.command(name="stats", aliases=["info"], hidden=True)
     async def debug_info(self, ctx): # pylint: disable=too-many-locals
         """Show at-a-glance information about Pingu."""
@@ -170,7 +152,9 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
             ("Processes",
              "**PIDs**\n{}\n**Threads**\n{}\n**Uptime**\n{}".format(
                  ", ".join(thread_id for thread_id in bot_threads),
-                 len(bot_threads), total_uptime), True)
+                 len(bot_threads), total_uptime), True),
+            ("Sharding",
+             "Sharding not enabled", True)
         ]
         for name, value, inline in stats_fields:
             stats_embed.add_field(name=name, value=value, inline=inline)
