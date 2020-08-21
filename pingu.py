@@ -73,21 +73,22 @@ class Pingu(commands.Bot):
             self.log.debug("%s: %s", type(error).__name__, error)
             return
         # Overridden global error handling
+        error_icon = self.icons["fail"]
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"{self.icons['fail']} Stop! You violated the law. "
+            await ctx.send(f"{error_icon} Stop! You violated the law. "
                            f"Wait {error.retry_after:.02f} seconds.")
             return
         if isinstance(error, commands.BotMissingPermissions):
-            await ctx.send(f"{self.icons['fail']} I'm missing the "
+            await ctx.send(f"{error_icon} I'm missing the "
                            f"`{'`, `'.join(error.missing_perms)}` permission(s) for the server.")
             return
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{self.icons['fail']} {error}")
+            await ctx.send(f"{error_icon} {error}")
             return
         # A catch-all formatter for any CommandError related messages
         if isinstance(error, commands.CommandError):
             self.log.info("%s: %s", type(error).__name__, error)
-            await ctx.send(f"{self.icons['fail']} {error}. Check the logs for more details.")
+            await ctx.send(f"{error_icon} {error}. Check the logs for more details.")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
 

@@ -30,7 +30,7 @@ class Clown(commands.Cog):
 
     @tasks.loop(count=1)
     async def update_cache(self):
-        """Updates the memory cache on startup or entry update."""
+        """Updates the memory cache on startup or entry update"""
         async with self.bot.db.acquire() as conn:
             results = await conn.fetch("SELECT * FROM clowns;")
             self.server_clowns = {result["guild_id"]: result["clown_id"] for result in results}
@@ -38,7 +38,7 @@ class Clown(commands.Cog):
 
     @tasks.loop(count=1)
     async def fetch_row(self):
-        """Sends a fetch_row query to the PostgreSQL server."""
+        """Sends a fetch_row query to the PostgreSQL server"""
         # Make sure the input is sanitized before executing queries
         async with self.bot.db.acquire() as conn:
             self.result = await conn.fetchrow(self.query)
@@ -46,13 +46,13 @@ class Clown(commands.Cog):
     @fetch_row.before_loop
     @update_cache.before_loop
     async def delay_queries(self):
-        """Prevents queries from executing until a database connection can be established."""
+        """Prevents queries from executing until a database connection can be established"""
         await self.bot.wait_until_ready()
 
     @commands.group(name="clown")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
-        """Shows who the clown is in a server."""
+        """Shows who the clown is in a server"""
         if ctx.invoked_subcommand is None:
             if not self.server_clowns:
                 raise commands.BadArgument("Unable to retrieve data. Try again later.")
@@ -78,7 +78,7 @@ class Clown(commands.Cog):
 
     @clown.command(name="nominate")
     async def nominate_clown(self, ctx: commands.Context, mention: str, *, reason: str):
-        """Nominate someone to be clown of the week."""
+        """Nominate someone to be clown of the week"""
         # Parse arguments
         if ctx.message.guild.id in self.polls and self.polls[ctx.message.guild.id]:
             raise commands.BadArgument("A nomination is currently in progress.")
@@ -155,7 +155,7 @@ class Clown(commands.Cog):
 
     @nominate_clown.error
     async def nominate_clown_error(self, ctx, error):
-        """Error check to see if a clown was not mentioned."""
+        """Error check to see if a clown was not mentioned"""
         error_icon = self.bot.icons['fail']
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "mention":
@@ -167,7 +167,7 @@ class Clown(commands.Cog):
     @clown.command(name="honk", case_insensitive=True, hidden=True)
     @commands.bot_has_guild_permissions(connect=True, speak=True)
     async def honk(self, ctx):
-        """Honk at the clown when they're in the same voice channel as you."""
+        """Honk at the clown when they're in the same voice channel as you"""
         file_name = "soundfx/honk.mp3"
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
         ctx.voice_client.play(source)
@@ -198,7 +198,7 @@ class Clown(commands.Cog):
 
     @honk.after_invoke
     async def cleanup_clown(self, ctx):
-        """Stay connected to the voice channel until the honk plays fully."""
+        """Stay connected to the voice channel until the honk plays fully"""
         while ctx.voice_client.is_playing():
             await asyncio.sleep(1.0)
         await ctx.voice_client.disconnect()
