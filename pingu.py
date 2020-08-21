@@ -5,9 +5,9 @@ Afterwards, run pingu.py normally as you would any Python script.
 """
 import asyncio
 import logging
-import platform
 import sys
 import traceback
+from datetime import datetime
 
 import asyncpg
 import discord
@@ -21,19 +21,27 @@ class Pingu(commands.Bot):
     Commands must be created in a cog and not in here.
     """
     def __init__(self):
-        super().__init__(command_prefix=settings.default["prefix"],
-                         description=settings.default["desc"])
+        self.boot_time = datetime.now()
         self.default = settings.default
         self.current = {"activity": self.default["activity"],
                         "desc": self.default["desc"],
                         "prefix": self.default["prefix"],
                         "status": self.default["status"]}
+        self.embed_colour = discord.Colour.from_rgb(138, 181, 252)
         self.icons = {"fail": ":x:",
                       "info": ":information_source:",
                       "success": ":white_check_mark:"}
-        self.embed_colour = discord.Colour.from_rgb(138, 181, 252)
         self.log = logging.getLogger("pingu")
-        self.log.info("Started Pingu instance")
+        self.log.info("Starting instance")
+
+        super().__init__(command_prefix=self.current["prefix"],
+                         description=self.current["desc"],
+                         activity=self.current["activity"],
+                         status=self.current["status"])
+
+        # Important debugging tools
+        self.log.info("Loading jishaku")
+        self.load_extension("jishaku")
 
         # Load the default modules as specified in settings.py
         for cog in settings.COGS:
@@ -41,32 +49,10 @@ class Pingu(commands.Bot):
             self.load_extension(f"cogs.{cog}")
 
     async def on_ready(self):
-        """Prints debug information about the token, bot usage, and the dependencies being used.
-        Also sets the bot's presence on Discord.
-
-        Warning: The ready state can be triggered multiple times due to the way the library
-        handles connections.
+        """Warning: The ready state can be triggered multiple times due to the
+        way Discord handles connections.
         """
-        await super().change_presence(status=self.current["status"],
-                                      activity=self.current["activity"])
-        total_servers = len(super().guilds)
-        total_users = len(set(super().get_all_members()))
-        debug_output = (f"--- [ General Information ] ---\n"
-                        f"[ Login ]\n"
-                        f"Logged in as:\n"
-                        f"- Username: {super().user}\n"
-                        f"- ID: {super().user.id}\n"
-                        f"[ Connections ]\n"
-                        f"Currently connected to:\n"
-                        f"- {total_servers} servers\n"
-                        f"- {total_users} unique users\n"
-                        f"[ Dependencies ]\n"
-                        f"Library versions being used:\n"
-                        f"- Python v{platform.python_version()}\n"
-                        f"- discord.py[voice] v{discord.__version__}\n"
-                        f"- Pingu v{settings.VERSION}\n"
-                        f"---------------------------------")
-        self.log.debug(debug_output)
+        self.log.debug("Make sure nothing important runs in here")
         self.log.info("Instance is ready to receive commands")
 
     async def on_message(self, message):

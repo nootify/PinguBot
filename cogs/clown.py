@@ -56,7 +56,7 @@ class Clown(commands.Cog):
         if ctx.invoked_subcommand is None:
             if not self.server_clowns:
                 raise commands.BadArgument("Unable to retrieve data. Try again later.")
-            if ctx.guild.id not in self.server_clowns:
+            if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
                 info_icon = self.bot.icons["info"]
                 await ctx.send(f"{info_icon} The clown is no one.")
                 return
@@ -163,26 +163,6 @@ class Clown(commands.Cog):
             elif error.param.name == "reason":
                 await ctx.send(f"{error_icon} No reason was provided for the nomination.")
             return
-
-    @clown.command(name="reset", hidden=True)
-    async def reset_clown(self, ctx):
-        """Reset the clown in a server to no one."""
-        self.query = f"SELECT clown_id, clowned_on FROM clowns WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
-        self.fetch_row.start() # pylint: disable=no-member
-        while self.fetch_row.is_running(): # pylint: disable=no-member
-            await asyncio.sleep(1)
-
-        # Prevent the clown from un-clowning themselves until a week passed
-        if ((self.result["clowned_on"] + timedelta(days=7)) >= date.today() and
-                self.result["clown_id"] == ctx.message.author.id):
-            raise commands.BadArgument("Clowns are not allowed to do that.")
-
-        self.query = f"UPDATE clowns SET clown_id = NULL, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
-        self.fetch_row.start() # pylint: disable=no-member
-        while self.fetch_row.is_running(): # pylint: disable=no-member
-            await asyncio.sleep(1)
-
-        await ctx.send(f"{self.bot.icons['info']} The clown is now set to no one.")
 
     @clown.command(name="honk", case_insensitive=True, hidden=True)
     @commands.bot_has_guild_permissions(connect=True, speak=True)

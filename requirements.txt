@@ -3,6 +3,7 @@ aiofiles
 asyncpg
 coverage
 discord.py[voice]
+jishaku
 prettytable
 psutil
 pylint

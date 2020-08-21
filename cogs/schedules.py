@@ -233,22 +233,23 @@ class Schedules(commands.Cog):
             output = "-------------"
             # Format times to standard 12-hour instead of 24-hour
             if isinstance(data, list):
-                output = "\n".join(f"{meeting['MTG_DAYS']}: "
-                                   f"{datetime.strptime(meeting['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
-                                   f"{datetime.strptime(meeting['END_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                   for meeting in data)
+                output = "\n".join(
+                    f"{meeting['MTG_DAYS']}: "
+                    f"{datetime.strptime(meeting['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
+                    f"{datetime.strptime(meeting['END_TIME'], '%H%M').strftime('%I:%M %p')}"
+                    for meeting in data)
             elif isinstance(data, dict) and len(data) > 1:
-                output = (f"{data['MTG_DAYS']}:"
-                          f" {datetime.strptime(data['START_TIME'], '%H%M').strftime('%I:%M %p')}"
-                          f" - {datetime.strptime(data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
+                output = (f"{data['MTG_DAYS']}: "
+                          f"{datetime.strptime(data['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
+                          f"{datetime.strptime(data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
             return output
 
         # Process each section and add it to the table
         for section in course_sections:
             instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
             seats = f'{section["ENROLLED"]}/{section["CAPACITY"]}'
-            meeting_times = process_meeting_times(section["Schedule"]
-                                                  if "Schedule" in section else None)
+            meeting_times = process_meeting_times(
+                section["Schedule"] if "Schedule" in section else None)
             schedule_display.add_row([section["SECTION"],
                                       instructor,
                                       seats,
