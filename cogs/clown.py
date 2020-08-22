@@ -105,11 +105,11 @@ class Clown(commands.Cog):
 
         # Create the clown of the week nomination message
         poll_delay = 120 # This is in seconds
-        poll_embed = discord.Embed(title="Clown of the Week Nomination",
+        poll_embed = discord.Embed(title="Clown of the Week",
                                    description=f"{mention} was nominated because:\n\n{reason}",
                                    colour=self.bot.embed_colour,
                                    timestamp=(datetime.utcnow() + timedelta(seconds=poll_delay)))
-        poll_embed.set_author(name=f"Nomination started by: {ctx.message.author}",
+        poll_embed.set_author(name=f"Nominated by: {ctx.message.author}",
                               icon_url=ctx.author.avatar_url)
         poll_embed.set_footer(text="Voting will end")
 
@@ -128,6 +128,10 @@ class Clown(commands.Cog):
         # Check the results of the poll
         results = {reaction.emoji: reaction.count
                    for reaction in self.polls[ctx.message.guild.id].reactions}
+        if "❌" not in results or "✅" not in results:
+            # Undo semaphore
+            self.polls[ctx.message.guild.id] = None
+            raise commands.BadArgument("Someone with moderator powers removed all the votes :eyes:")
         if results["❌"] >= results["✅"]:
             # Undo semaphore
             self.polls[ctx.message.guild.id] = None
@@ -168,11 +172,19 @@ class Clown(commands.Cog):
     @commands.bot_has_guild_permissions(connect=True, speak=True)
     async def honk(self, ctx):
         """Honk at the clown when they're in the same voice channel as you"""
+        def cleanup(error):
+            if error:
+                self.log.error("voice_client: %s", error)
+            disconnect = ctx.voice_client.disconnect()
+            run = asyncio.run_coroutine_threadsafe(disconnect, self.bot.loop)
+            try:
+                run.result()
+            except Exception as exc: # pylint: disable=broad-except
+                self.log.error("%s: %s", type(exc).__name__, exc)
+
         file_name = "soundfx/honk.mp3"
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
-        ctx.voice_client.play(source)
-        # voice_client.play debug:
-        # ctx.voice_client.play(source, after=lambda e: print("Player error: {}".format(e)))
+        ctx.voice_client.play(source, after=cleanup)
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
@@ -185,23 +197,19 @@ class Clown(commands.Cog):
         # If initial set command was not run or clown in server is set to no one
         if ctx.guild.id not in self.server_clowns or self.server_clowns[ctx.guild.id] is None:
             raise commands.BadArgument("No clown was set.")
+
+        # Check the clown is in the voice channel
+        if not ctx.author.voice:
+            raise commands.BadArgument("You are not connected to a voice channel.")
+        clowns_found = [member for member in ctx.author.voice.channel.members if member.id == self.server_clowns[ctx.guild.id]]
+        if len(clowns_found) == 0:
+            raise commands.BadArgument("Clown is not in the voice channel.")
+
         # Check if bot is already connected to a voice channel
         if not ctx.voice_client:
-            # Check if the command issuer is connected to a voice channel
-            if not ctx.author.voice:
-                raise commands.BadArgument("You are not connected to a voice channel.")
-
-            # Custom voice channel permission check
             await self.connect_voice(ctx.author.voice.channel, ctx=ctx)
         elif ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-
-    @honk.after_invoke
-    async def cleanup_clown(self, ctx):
-        """Stay connected to the voice channel until the honk plays fully"""
-        while ctx.voice_client.is_playing():
-            await asyncio.sleep(1.0)
-        await ctx.voice_client.disconnect()
+            raise commands.BadArgument("There is audio already playing in a channel.")
 
     async def connect_voice(self, voice: discord.VoiceChannel, ctx: commands.Context = None):
         """Custom voice channel permission checker that was implemented because...
