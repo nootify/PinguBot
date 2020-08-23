@@ -185,10 +185,6 @@ class Clown(commands.Cog):
         file_name = "soundfx/honk.mp3"
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
         ctx.voice_client.play(source, after=cleanup)
-    
-    @clown.command(name="cry", case_insensitive=True, hidden=True)
-    async def cry(self, ctx: commands.Context, mention: str, *, reason: str):
-        await ctx.send(f"Crying....")
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
