@@ -35,7 +35,12 @@ If you need it in your terminal for some reason, you can run the following:
 source .env
 ```
 
-To run dockerfile
+To build dockerfile to image
 ```
-docker run -t -e PINGU_TOKEN=<TOKEN> pingu/bot
+sudo docker build -t <IMAGE-NAME> .
+```
+
+To run image
+```
+sudo docker run -t -e PINGU_TOKEN=<TOKEN> <IMAGE-NAME>
 ```
