@@ -37,5 +37,5 @@ source .env
 
 To run dockerfile
 ```
-docker run -t -e PINGU_TOKEN=<TOKEN> -p 80:80 pingu/bot
+docker run -t -e PINGU_TOKEN=<TOKEN> pingu/bot
 ```
