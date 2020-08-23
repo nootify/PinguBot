@@ -6,6 +6,7 @@ Afterwards, run pingu.py normally as you would any Python script.
 import asyncio
 import logging
 import os
+import ssl
 import sys
 import traceback
 from datetime import datetime
@@ -96,9 +97,14 @@ class Pingu(commands.Bot):
 
 async def attach_db(bot: Pingu):
     """Helper function to attach a PostgreSQL connection to Pingu.
-    Parameters should be passed in using environment variables.
+    No paramaters are passed in because it uses the ~/.pgpass file.
+    If the file is not found, environment variables must be set to
+    connect to the database.
     """
-    bot.db = await asyncpg.create_pool()
+    postgresql_ssl = ssl.SSLContext()
+    if os.path.exists(f"{os.path.expanduser('~')}/.pgpass"):
+        postgresql_ssl = None
+    bot.db = await asyncpg.create_pool(ssl=postgresql_ssl)
 
 
 if __name__ == "__main__":
@@ -116,7 +122,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(consoleLogger)
 
     # Check for the token
-    if not settings.TOKEN:
+    if settings.TOKEN is None:
         raise ValueError("Token was not specified in $PINGU_TOKEN")
 
     # This enables discord.py to handle the bot, while the DB connection is left to the dev

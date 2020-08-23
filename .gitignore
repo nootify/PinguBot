@@ -1,6 +1,3 @@
-# Docker persistence volume
-postgres-data
-
 # IDE related files
 .vscode
 
