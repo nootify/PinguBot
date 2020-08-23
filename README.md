@@ -34,3 +34,13 @@ If you need it in your terminal for some reason, you can run the following:
 ```bash
 source .env
 ```
+
+To build dockerfile to image
+```
+sudo docker build -t <IMAGE-NAME> .
+```
+
+To run image
+```
+sudo docker run -t -e PINGU_TOKEN=<TOKEN> <IMAGE-NAME>
+```
