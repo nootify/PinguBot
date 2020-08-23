@@ -188,7 +188,7 @@ class Clown(commands.Cog):
     
     @clown.command(name="cry", case_insensitive=True, hidden=True)
     async def cry(self, ctx: commands.Context, mention: str, *, reason: str):
-        ctx.send(f"{self.bot.icons['info']} The clown is now `{mention}` (`{mention.nick}`).")
+        ctx.send(f"Crying....")
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
