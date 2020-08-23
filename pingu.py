@@ -101,10 +101,7 @@ async def attach_db(bot: Pingu):
     If the file is not found, environment variables must be set to
     connect to the database.
     """
-    postgresql_ssl = ssl.SSLContext()
-    if os.environ.get("PGHOST") or os.path.exists(f"{os.path.expanduser('~')}/.pgpass"):
-        postgresql_ssl = None
-    bot.db = await asyncpg.create_pool(ssl=postgresql_ssl)
+    bot.db = await asyncpg.create_pool()
 
 
 if __name__ == "__main__":
