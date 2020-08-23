@@ -78,7 +78,7 @@ class Clown(commands.Cog):
 
     @clown.command(name="nominate")
     async def nominate_clown(self, ctx: commands.Context, mention: str, *, reason: str):
-        """Nominate someone to be clown of the week"""
+        """Nominate someone to be clown of the week :clown:"""
         # Parse arguments
         if ctx.message.guild.id in self.polls and self.polls[ctx.message.guild.id]:
             raise commands.BadArgument("A nomination is currently in progress.")
