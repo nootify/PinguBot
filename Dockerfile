@@ -1,3 +1,4 @@
 FROM python:3.8.2
 COPY . .
-CMD  python pingu.py
+RUN python -m pip install -r requirements.txt
+CMD python pingu.py
