@@ -98,6 +98,8 @@ class Pingu(commands.Bot):
 async def attach_db(bot: Pingu):
     """Helper function to attach a PostgreSQL connection to Pingu.
     No paramaters are passed in because it uses the ~/.pgpass file.
+    If the file is not found, environment variables must be set to
+    connect to the database.
     """
     postgresql_ssl = ssl.SSLContext()
     if os.path.exists(f"{os.path.expanduser('~')}/.pgpass"):
