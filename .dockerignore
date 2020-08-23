@@ -1,0 +1,10 @@
+# Unnecessary clutter
+**/.git
+**/.gitignore
+**/.gitattributes
+**/venv
+# Temporary pingu files
+cache/**
+pingu.log
+# Docker container data
+postgres-data
