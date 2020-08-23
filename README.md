@@ -1,5 +1,5 @@
 # PinguBot
-A simple Discord bot running on the discord.py library
+A simple Discord bot running on the discord.py library.
 
 ## Requirements
 To run PinguBot, Python 3 and a copy of this repo is required.
