@@ -1,5 +1,5 @@
 # PinguBot
-A simple Discord bot running on the discord.py library
+A simple Discord bot running on the discord.py library.
 
 ## Requirements
 To run PinguBot, Python 3 and a copy of this repo is required.
@@ -33,4 +33,14 @@ You're all set! Pingu will automatically retrieve your token from `.env`.
 If you need it in your terminal for some reason, you can run the following:
 ```bash
 source .env
+```
+
+To build dockerfile to image
+```
+sudo docker build -t <IMAGE-NAME> .
+```
+
+To run image
+```
+sudo docker run -t -e PINGU_TOKEN=<TOKEN> <IMAGE-NAME>
 ```
