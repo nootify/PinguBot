@@ -8,6 +8,7 @@ from datetime import datetime
 import aiofiles
 import aiohttp
 from discord.ext import commands, tasks
+from prettytable import PrettyTable, PLAIN_COLUMNS
 
 
 class Schedules(commands.Cog):
@@ -91,7 +92,7 @@ class Schedules(commands.Cog):
                     self.schedule_data = {memory_location: json.loads(data)}
                 else:
                     self.schedule_data[memory_location] = json.loads(data)
-                self.log.info("Cache file '%s' loaded into '%s'", filename, memory_location)
+                self.log.debug("Cache file '%s' loaded into '%s'", filename, memory_location)
 
         async def update_cache(filename: str, endpoint: str, memory_location: str) -> None:
             """Helper function that combines all of the previous subroutines.
@@ -110,8 +111,8 @@ class Schedules(commands.Cog):
                 self.current_semester = str(self.schedule_data[memory_location]["ct"])
                 self.semester_codes = {semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
                                        for semester in loaded_semesters}
-                self.log.info("Semester code table refreshed (current semester is '%s')",
-                              self.current_semester)
+                self.log.debug("Semester code table refreshed (current semester is '%s')",
+                               self.current_semester)
 
                 # Replace the "latest" key with the actual current semester code
                 self.schedule_data[self.current_semester] = self.schedule_data.pop(memory_location)
@@ -143,171 +144,150 @@ class Schedules(commands.Cog):
             self.current_semester = None
             self.schedule_data = None
             self.semester_codes = None
-            self.log.info("Cleared cached data from memory")
+            self.log.debug("Cleared cached data from memory")
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, req_course: str, req_display: str = "full", *, req_semester: str = None):
+    async def get_course(self, ctx, req_course: str, *, req_semester: str = None):
         """Retrieves information about a course based on the semester"""
+        # Ensure that the schedule data has been retrieved and is loaded in memory
+        if self.schedule_data is None or len(self.schedule_data) == 0:
+            raise commands.BadArgument("Schedule data not available. Try again in a few seconds.")
 
-        # TODO: Breakup command into submodules
-        display_types = ["less", "full"]
-        if req_display.lower() not in display_types:
-            raise commands.BadArgument(f"Invalid display format.\n"
-                                       f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
-
-        if len(self.schedule_data) == 0:
-            raise commands.BadArgument("Course data was not retrieved yet. Try again later.")
-
-        # Check if a semester other than the latest was specified
+        # Check the requested semester is valid
+        # If not specified, default to current semester
+        selected_course = req_course.upper()
         if req_semester is not None:
             selected_semester = req_semester.lower()
-
-            # Reversed the key and values of the original lookup table
-            semester_descriptions = dict((desc, code) for code, desc in self.semester_codes.items())
-            if selected_semester not in semester_descriptions:
-                raise commands.BadArgument("Specified semester does not exist.")
-
-            selected_semester = semester_descriptions[selected_semester]
+            codes_reversed = dict((desc, code) for code, desc in self.semester_codes.items())
+            if selected_semester not in codes_reversed:
+                raise commands.BadArgument("Requested semester does not exist.")
+            selected_semester = codes_reversed[selected_semester]
         else:
             selected_semester = self.current_semester
-        self.log.info("'%s' was selected", selected_semester)
+        self.log.debug("'%s' (%s) was selected",
+                       self.semester_codes[selected_semester],
+                       selected_semester)
 
+        def get_sections(semester_code: str, selected_course: str):
+            """Retrieves all of the matching sections for a given course in a single list
 
-        # Match all sections with the given course number
-        matches = []
-        req_course = req_course.upper()
-        course_prefix = req_course[:-3]  # e.g. CS, HIST, YWCC, etc.
-        course_data = self.schedule_data[selected_semester]["ws"]["WSRESPONSE"]["Subject"]
-        for subject in course_data:
-            current_subject = subject["SUBJ"]
-            if course_prefix == current_subject:
-                all_courses = subject["Course"]
-                for course in all_courses:
-                    course_number = course["COURSE"]
-                    if req_course == course_number:
-                        all_sections = course["Section"]
-                        # The NJIT endpoint does not have consistent structure of data
-                        if isinstance(all_sections, list):
-                            matches.extend(all_sections)  # List of sections
-                        elif isinstance(all_sections, dict):
-                            matches.append(all_sections)  # Single section
-                        else:
-                            self.log.error("An unknown data structure was parsed for %s - %s", course_number, all_sections)
+            :param str semester_code: The semester to retrieve the schedule data from
+            :param str selected_course: The course to look for in the semester data
+            :return: All of the matching sections of a course in that semester
+            :rtype: list
+            """
+            selected_prefix = selected_course[:-3]
+            semester_data = self.schedule_data[semester_code]["ws"]["WSRESPONSE"]["Subject"]
 
-        if len(matches) == 0:
+            # Unpack the inner list from the outer list
+            # If the course does not exist, return an empty list
+            [matching_courses] = [subject["Course"] for subject in semester_data
+                                  if selected_prefix == subject["SUBJ"]] or [[]]
+            matching_sections = [course["Section"] for course in matching_courses
+                                 if selected_course == course["COURSE"]]
+
+            # Reformat all matches into a single list
+            matches = []
+            for section in matching_sections:
+                if isinstance(section, list):
+                    matches.extend(section)  # List of sections
+                elif isinstance(section, dict):
+                    matches.append(section)  # Single section
+                else:
+                    self.log.error("An unknown data structure was parsed for %s - %s",
+                                   selected_course,
+                                   section)
+            return matches
+
+        # Error check if the course exists for that semester
+        course_sections = get_sections(selected_semester, selected_course)
+        if len(course_sections) == 0:
             raise commands.BadArgument("Specified course was not found.")
 
-        # Format to desktop users (shows complete information)
-        # Semester info (header)
-        if req_display == "full":
-            course_titles = set(match["TITLE"] for match in matches)
-            output = f":calendar_spiral: {selected_semester} - {req_course} ({' / '.join(course_titles)})\n"
-            # Course schedules (body header)
-            SECTION_PADDING = 9
-            INSTRUCTOR_PADDING = max(len(section["INSTRUCTOR"]) for section in matches) + 2
-            SEATS_PADDING = 7
-            TYPE_PADDING = max(len(section["INSTRUCTIONMETHOD"]) for section in matches) + 2
-            if INSTRUCTOR_PADDING < (len("<No Instructor>") + 2):  # Fixes rare formatting issue
-                INSTRUCTOR_PADDING = len("<No Instructor>") + 2
-            output += "```"
-            output += (f"{'SECTION'.ljust(SECTION_PADDING)}"
-                       f"{'INSTRUCTOR'.ljust(INSTRUCTOR_PADDING)}"
-                       f"{'SEATS'.ljust(SEATS_PADDING)}"
-                       f"{'TYPE'.ljust(TYPE_PADDING)}"
-                       f"MEETING TIMES\n")
-            # Course schedules (body content)
-            for section in matches:
-                # If there is too much data stored, empty buffer and split into multiple messages
-                if len(output) >= 1800:
-                    output += "```"  # End previous code block
-                    await ctx.send(output)
-                    await asyncio.sleep(1.0)
-                    output = "```"  # Create new code block
+        # Create and format the table
+        unknown = "<Unassigned>"
+        instructor_column_size = max(len(section["INSTRUCTOR"].split(",", 1)[0])
+                                     for section in course_sections) + 1
+        schedule_display = PrettyTable()
+        schedule_display.set_style(PLAIN_COLUMNS)
+        schedule_display.field_names = ["SEC", "INSTRUCTOR", "SEATS", "TYPE", "MEETING TIMES"]
+        schedule_display.align["SEATS"] = "l"
+        schedule_display.align["MEETING TIMES"] = "r"
+        schedule_display.left_padding_width = 1
+        schedule_display.right_padding_width = 1
+        schedule_display._max_width = {"INSTRUCTOR": instructor_column_size # pylint: disable=protected-access
+                                                     if instructor_column_size >= len(unknown)
+                                                     else len(unknown)}
 
-                # Catch sections without an assigned instructor and replace it with a placeholder name
-                if section["INSTRUCTOR"] == ", ":
-                    section["INSTRUCTOR"] = "<No Instructor>"
+        # Create the table header
+        course_titles = set(section["TITLE"] for section in course_sections
+                            if "honors" not in section["TITLE"].lower())
+        header = ":calendar_spiral: {} - {} ({})\n".format(
+            self.semester_codes[selected_semester].title(),
+            selected_course,
+            " / ".join(course_titles))
 
-                # Get meeting times of a particular section
-                if "Schedule" in section:
-                    schedule_data = section["Schedule"]
-                else:
-                    schedule_data = None  # Special high-school only sections sometimes appear in the course list
-                if isinstance(schedule_data, list):
-                    # Format times to standard 12-hour instead of 24-hour
-                    schedule_output = ", ".join(f"{schedule['MTG_DAYS']}:"
-                                                f" {datetime.strptime(schedule['START_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                                f" - {datetime.strptime(schedule['END_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                                for schedule in schedule_data)
-                elif isinstance(schedule_data, dict) and len(schedule_data) > 1:
-                    schedule_output = (f"{schedule_data['MTG_DAYS']}:"
-                                       f" {datetime.strptime(schedule_data['START_TIME'], '%H%M').strftime('%I:%M %p')}"
-                                       f" - {datetime.strptime(schedule_data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
-                else:
-                    # If no meeting times are found, replace with a placeholder line
-                    schedule_output = "-------------"
+        def process_meeting_times(data):
+            """Helper function that formats the meeting time hours of a section."""
+            output = "-------------"
+            # Format times to standard 12-hour instead of 24-hour
+            if isinstance(data, list):
+                output = "\n".join(
+                    f"{meeting['MTG_DAYS']}: "
+                    f"{datetime.strptime(meeting['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
+                    f"{datetime.strptime(meeting['END_TIME'], '%H%M').strftime('%I:%M %p')}"
+                    for meeting in data)
+            elif isinstance(data, dict) and len(data) > 1:
+                output = (f"{data['MTG_DAYS']}: "
+                          f"{datetime.strptime(data['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
+                          f"{datetime.strptime(data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
+            return output
 
-                # Format retrieved information into human readable form
-                output += (f"{section['SECTION'].ljust(SECTION_PADDING)}"
-                           f"{section['INSTRUCTOR'].ljust(INSTRUCTOR_PADDING)}"
-                           f"{int(section['ENROLLED']):02d}/{int(section['CAPACITY']):02d}  "
-                           f"{section['INSTRUCTIONMETHOD'].ljust(TYPE_PADDING)}"
-                           f"{schedule_output}\n")
-            output += "```"
+        # Process each section and add it to the table
+        for section in course_sections:
+            instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
+            seats = f'{section["ENROLLED"]}/{section["CAPACITY"]}'
+            meeting_times = process_meeting_times(
+                section["Schedule"] if "Schedule" in section else None)
+            schedule_display.add_row([section["SECTION"],
+                                      instructor,
+                                      seats,
+                                      section["INSTRUCTIONMETHOD"],
+                                      meeting_times])
+
+        def shrink_header(table: PrettyTable, start: int, lines: int):
+            """nap told me to fix this"""
+            output = f"```{table.get_string(start=start, end=start+lines)}```"
+            while len(output) > 2000:
+                lines -= 1
+                output = f"```{table.get_string(start=start, end=start+lines)}```"
+            return output, lines
+
+        def shrink_body(table: PrettyTable, start: int, lines: int):
+            """this one too"""
+            output = f"```{table.get_string(start=start, end=start+lines, header=False)}```"
+            while len(output) > 2000:
+                lines -= 1
+                output = f"```{table.get_string(start=start, end=start+lines, header=False)}```"
+            return output, lines
+
+        # Paginate table output because of Discord's 2000 character limit per message
+        await ctx.send(header)
+        max_lines = 20
+        counter = 0
+        output, max_lines = shrink_header(schedule_display, counter, max_lines)
+        while len(output) > 6:
             await ctx.send(output)
-        # Format to mobile users (shows compacted information)
-        # Semester info (header)
-        elif req_display == "less":
-            course_title = list(set(match["TITLE"] for match in matches if "honors" not in match["TITLE"].lower()))
-            output = f":calendar_spiral: {selected_semester} - {req_course}\n({course_title[0]})\n"
-
-            def squeeze_name(name: str) -> str:
-                """Used to condense the first name to its initial."""
-                if name == "<No Instructor>" or name == ", ":
-                    return name
-                else:
-                    last_name, first_name = name.split(", ")
-                    compacted_name = f"{last_name}, {first_name[0]}."
-                    return compacted_name[:19]
-
-            # Course schedules (body header)
-            SECTION_PADDING = 5
-            INSTRUCTOR_PADDING = max(len(squeeze_name(section["INSTRUCTOR"])) for section in matches) + 1
-            if INSTRUCTOR_PADDING < (len("<No Instructor>") + 1):  # Fixes rare formatting issues
-                INSTRUCTOR_PADDING = len("<No Instructor>") + 1
-            output += "```"
-            output += (f"{'SEC.'.ljust(SECTION_PADDING)}"
-                       f"{'INSTRUCTOR'.ljust(INSTRUCTOR_PADDING)}"
-                       f"SEATS\n")
-            # Course schedules (body content)
-            for section in matches:
-                # If there is too much data stored, empty buffer and split into multiple messages
-                if len(output) >= 1800:
-                    output += "```"  # End previous code block
-                    await ctx.send(output)
-                    await asyncio.sleep(1.0)
-                    output = "```"  # Create new code block
-
-                # Catch sections without an assigned instructor and replace it with a placeholder name
-                if section["INSTRUCTOR"] == ", ":
-                    section["INSTRUCTOR"] = "<No Instructor>"
-
-                # Format retrieved information into human readable form
-                output += (f"{section['SECTION'].ljust(SECTION_PADDING)}"
-                           f"{squeeze_name(section['INSTRUCTOR']).ljust(INSTRUCTOR_PADDING)}"
-                           f"{int(section['ENROLLED']):02d}/{int(section['CAPACITY']):02d}\n")
-            output += "```"
-            await ctx.send(output)
+            await asyncio.sleep(1)
+            counter += max_lines
+            output, max_lines = shrink_body(schedule_display, counter, max_lines)
 
     @get_course.error
     async def get_course_error(self, ctx, error):
+        """Error checking the parameters of the get_course command."""
         if isinstance(error, commands.MissingRequiredArgument):
-            if error.param.name == "req_display":
-                await ctx.send(f"{self.bot.icons['fail']} No display format was specified.\n"
-                               f"Command usage: `{self.bot.command_prefix}course less/full <course_number>`")
-            else:
-                await ctx.send(f"{self.bot.icons['fail']} No course was specified.")
+            await ctx.send(f"{self.bot.icons['fail']} No course number was specified.")
 
 
 def setup(bot):

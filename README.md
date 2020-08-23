@@ -7,7 +7,7 @@ To run PinguBot, Python 3 and a copy of this repo is required.
 To run the automatic setup script, a Linux distro with Bash is required.
 
 ## Installation
-To automatically install and set everything, run the included `setup.sh` script.
+To automatically install and set everything, run `setup.sh` in the `scripts` directory.
 
 ### Depedencies
 To install the dependencies manually, run the following:
@@ -33,4 +33,14 @@ You're all set! Pingu will automatically retrieve your token from `.env`.
 If you need it in your terminal for some reason, you can run the following:
 ```bash
 source .env
+```
+
+To build dockerfile to image
+```
+sudo docker build -t <IMAGE-NAME> .
+```
+
+To run image
+```
+sudo docker run -t -e PINGU_TOKEN=<TOKEN> <IMAGE-NAME>
 ```

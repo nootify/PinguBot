@@ -1,4 +1,6 @@
+"""This module houses music/video streaming"""
 import asyncio
+
 import discord
 import youtube_dl
 from discord.ext import commands
@@ -111,4 +113,5 @@ class Music(commands.Cog):
 
 
 def setup(bot):
+    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Music(bot))

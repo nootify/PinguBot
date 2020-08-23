@@ -28,7 +28,7 @@ while true; do
 	read -s -p "Enter token here (will not be shown in the terminal):"$'\n' usr_input
 
 	if [ "${#usr_input}" -gt 0 ]; then
-		echo "export PINGU_TOKEN=$usr_input" > .env
+		echo "export PINGU_TOKEN=$usr_input" > ../.env
 		break
 	fi
 	
