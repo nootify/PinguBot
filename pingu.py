@@ -102,7 +102,7 @@ async def attach_db(bot: Pingu):
     connect to the database.
     """
     postgresql_ssl = ssl.SSLContext()
-    if os.path.exists(f"{os.path.expanduser('~')}/.pgpass"):
+    if os.environ.get("PGHOST") or os.path.exists(f"{os.path.expanduser('~')}/.pgpass"):
         postgresql_ssl = None
     bot.db = await asyncpg.create_pool(ssl=postgresql_ssl)
 
