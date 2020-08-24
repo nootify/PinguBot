@@ -1,36 +1,26 @@
 # PinguBot
-A simple Discord bot running on the discord.py library
+A simple Discord bot running on the discord.py library.
 
 ## Requirements
-To run PinguBot, Python 3 and a copy of this repo is required.
+Python 3.8+, Docker, docker-compose, and a copy of this repo is required.
 
-To run the automatic setup script, a Linux distro with Bash is required.
+Python 3.7 does not support unicode CLDR emoji, a la `\N{grinning face with smiling eyes}`.
+
+It's highly recommended to run this in a Docker container, instead of running it manually.
 
 ## Installation
-To automatically install and set everything, run `setup.sh` in the `scripts` directory.
-
-### Depedencies
-To install the dependencies manually, run the following:
+Run this in docker-compose to create the image:
 ```bash
-python -m pip install -r requirements.txt
+docker-compose build
 ```
-### Environment
-To create the environment needed to run the bot manually, create a `.env` file.
-
-Paste the following inside: `export PINGU_TOKEN=<Your token goes here>`
-
-Make sure to replace `<Your token goes here>` with your actual token from the Discord Developer Portal.
-
-Note: Do not add spaces in between the `=` or else your bot will not function.
 
 ## Deployment
-Assuming you are in the PinguBot directory, run: 
+Run this in docker-compose to deploy PinguBot: 
 ```bash
-python pingu.py
+docker-compose up -d
 ```
-You're all set! Pingu will automatically retrieve your token from `.env`.
 
-If you need it in your terminal for some reason, you can run the following:
+You can also do this to install and deploy in one go:
 ```bash
-source .env
+docker-compose up -d --build
 ```
