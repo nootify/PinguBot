@@ -88,7 +88,7 @@ class Schedules(commands.Cog):
                 # json.loads requires bytes/string data
                 # json.load requires a file object
                 data = await cache_file.read()
-                if self.schedule_data is None:
+                if not self.schedule_data:
                     self.schedule_data = {memory_location: json.loads(data)}
                 else:
                     self.schedule_data[memory_location] = json.loads(data)
@@ -148,7 +148,7 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, req_course: str, *, req_semester: str = None):
+    async def get_course(self, ctx, course_number: str, *, semester: str = None):
         """Retrieves information about a course based on the semester"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not self.schedule_data or len(self.schedule_data) == 0:
@@ -156,9 +156,9 @@ class Schedules(commands.Cog):
 
         # Check the requested semester is valid
         # If not specified, default to current semester
-        selected_course = req_course.upper()
-        if req_semester is not None:
-            selected_semester = req_semester.lower()
+        selected_course = course_number.upper()
+        if semester:
+            selected_semester = semester.lower()
             codes_reversed = dict((desc, code) for code, desc in self.semester_codes.items())
             if selected_semester not in codes_reversed:
                 raise commands.BadArgument("Requested semester does not exist.")
@@ -235,8 +235,10 @@ class Schedules(commands.Cog):
             try:
                 if isinstance(data, list):
                     meetings = [(meeting["MTG_DAYS"],
-                                 datetime.strptime(meeting["START_TIME"], "%H%M").strftime("%I:%M %p"),
-                                 datetime.strptime(meeting["END_TIME"], "%H%M").strftime("%I:%M %p"))
+                                 datetime.strptime(
+                                     meeting["START_TIME"], "%H%M").strftime("%I:%M %p"),
+                                 datetime.strptime(
+                                     meeting["END_TIME"], "%H%M").strftime("%I:%M %p"))
                                  for meeting in data]
                     output = "\n".join("{}: {} - {}".format(*meeting) for meeting in meetings)
                 elif isinstance(data, dict) and len(data) > 1:

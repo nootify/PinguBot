@@ -59,7 +59,7 @@ class Pingu(commands.Bot):
         """Actions that are performed for any message that the bot can see."""
         # Ignore messages from itself, other bots, or from DMs
         # Note: this can't catch users that are selfbotting
-        if message.author.bot or message.guild is None:
+        if message.author.bot or not message.guild:
             return
 
         # Allow information to pass through
@@ -83,6 +83,9 @@ class Pingu(commands.Bot):
             missing = "`, `".join(error.missing_perms)
             await ctx.send(
                 f"{error_icon} I'm missing the `{missing}` permission(s) for the server.")
+            return
+        if isinstance(error, commands.DisabledCommand):
+            await ctx.send(f"{error_icon} This command has been disabled for now.")
             return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{error_icon} {error}")

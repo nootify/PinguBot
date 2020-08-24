@@ -53,30 +53,32 @@ class Clown(commands.Cog):
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
         """Shows who the clown is in a server"""
-        if not ctx.invoked_subcommand:
-            if not self.server_clowns:
-                raise commands.BadArgument("Unable to retrieve data. Try again later.")
-            if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
-                info_icon = self.bot.icons["info"]
-                await ctx.send(f"{info_icon} The clown is no one.")
-                return
+        if ctx.invoked_subcommand:
+            return
 
-            # MemberConverter requires a string value
-            try:
-                server_clown = await commands.MemberConverter().convert(
-                    ctx, str(self.server_clowns[ctx.guild.id]))
-                self.log.debug(self.server_clowns[ctx.guild.id])
-            except commands.BadArgument as exc:
-                raise commands.BadArgument("The clown is no longer in the server.") from exc
+        if not self.server_clowns:
+            raise commands.BadArgument("Unable to retrieve data. Try again later.")
+        if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
+            info_icon = self.bot.icons["info"]
+            await ctx.send(f"{info_icon} The clown is no one.")
+            return
+
+        # MemberConverter requires a string value
+        try:
+            server_clown = await commands.MemberConverter().convert(
+                ctx, str(self.server_clowns[ctx.guild.id]))
+            self.log.debug(self.server_clowns[ctx.guild.id])
+        except commands.BadArgument as exc:
+            raise commands.BadArgument("The clown is no longer in the server.") from exc
+        else:
+            info_icon = self.bot.icons["info"]
+            if not server_clown.nick:
+                await ctx.send(f"{info_icon} The clown is `{server_clown}`.")
             else:
-                info_icon = self.bot.icons["info"]
-                if not server_clown.nick:
-                    await ctx.send(f"{info_icon} The clown is `{server_clown}`.")
-                else:
-                    await ctx.send(
-                        f"{info_icon} The clown is `{server_clown}` (`{server_clown.nick}`).")
+                await ctx.send(
+                    f"{info_icon} The clown is `{server_clown}` (`{server_clown.nick}`).")
 
-    @clown.command(name="nominate")
+    @clown.command(name="nominate", aliases=["nom"])
     async def nominate_clown(self, ctx: commands.Context, mention: str, *, reason: str):
         """Nominate someone to be clown of the week"""
         # Parse arguments
@@ -190,14 +192,9 @@ class Clown(commands.Cog):
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
-        """Custom voice channel permission checker was implemented because...
-        1. @commands.bot_has_guild_permissions(...) decorator only checks if the bot has
-            this permission in one of the roles it has in the SERVER, and the
-        2. @commands.bot_has_permissions(...) decorator checks the permissions in the
-            current TEXT channel, but not the actual voice channel.
-        """
+        """Ensures all the conditions are good before connecting to voice"""
         # If initial set command was not run or clown in server is set to no one
-        if ctx.guild.id not in self.server_clowns or self.server_clowns[ctx.guild.id] is None:
+        if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
             raise commands.BadArgument("No clown was set.")
 
         # Check the clown is in the voice channel

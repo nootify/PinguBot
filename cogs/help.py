@@ -16,7 +16,7 @@ class PinguHelp(commands.HelpCommand):
 
     def get_description(self):
         """Returns a helpful tip for the user."""
-        return ("Type {0}{1} <Module> or {0}{1} `<command>` for more info.\n"
+        return ("Type {0}{1} [Module] or {0}{1} `[command]` for more info.\n"
                 "Module names are Case Sensitive.").format(
             self.clean_prefix, self.invoked_with)
 
@@ -26,15 +26,15 @@ class PinguHelp(commands.HelpCommand):
 
     # Display a list of available commands of each loaded cog
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title="Pingu Modules", colour=self.COLOUR)
+        embed = discord.Embed(title="Pingu Modules/Commands", colour=self.COLOUR)
         embed.description = self.get_description()
 
         # mapping is a dictionary of cogs paired with its associated commands
         for cog, available_commands in mapping.items():
             # Hide these modules from the help command
-            if cog and cog.qualified_name in ["Jishaku"]:
+            if cog and cog.qualified_name in ["Jishaku", "Alert"]:
                 continue
-            cog_name = "No Category" if cog is None else cog.qualified_name
+            cog_name = "No Category" if not cog else cog.qualified_name
             # Skip over cogs that are meant to be hidden (e.g. admin, help)
             # since they don't have a class docstring associated with them
             if cog and cog.description:
@@ -94,10 +94,10 @@ class PinguHelp(commands.HelpCommand):
         return f":x: `{string}` is not a valid option for the `{command}` command"
 
 
-class Help(commands.Cog): # pylint: disable=missing-class-docstring
+class Help(commands.Cog):
+    """Sadly, the recursion train ends here"""
     # This is a helper class used to load the PinguHelp class in as a cog
-    # No class docstring is provided, otherwise it will be displayed within the embed as well
-    # It is also a better alternative to removing the default help command entirely
+    # It's better than removing the built-in help command entirely
     def __init__(self, bot):
         self.bot = bot
         self._original_help_command = bot.help_command

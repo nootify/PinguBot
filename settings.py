@@ -15,5 +15,5 @@ default = {"activity": discord.Activity(type=discord.ActivityType.watching,
            "prefix": "%",
            "status": discord.Status.online}
 TOKEN = os.environ.get("PINGU_TOKEN")
-COGS = ["admin", "alert", "clown", "help"]
+COGS = ["alert", "clown", "help", "miscellaneous", "schedules"]
 VERSION = "0.0.3"
