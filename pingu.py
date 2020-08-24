@@ -80,8 +80,9 @@ class Pingu(commands.Bot):
                            f"Wait {error.retry_after:.02f} seconds.")
             return
         if isinstance(error, commands.BotMissingPermissions):
-            await ctx.send(f"{error_icon} I'm missing the "
-                           f"`{'`, `'.join(error.missing_perms)}` permission(s) for the server.")
+            missing = "`, `".join(error.missing_perms)
+            await ctx.send(
+                f"{error_icon} I'm missing the `{missing}` permission(s) for the server.")
             return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{error_icon} {error}")

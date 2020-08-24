@@ -1,18 +1,16 @@
-FROM python:3.8-slim-buster
+FROM python:3.8-slim-buster AS build
 
-WORKDIR /pingubot
-COPY . .
-
+# Install required base tools for psutil and start.sh
 RUN apt-get update && \
-    # Required for psutil and start.sh
     apt-get install gcc python3-dev netcat -y --no-install-recommends && \
-    # Clean up apt-get
-    rm -rf /var/lib/apt/lists/* && \
-    # In case pip is outdated
-    pip install --upgrade pip && \
-    # Install required packahes
-    pip install -r requirements.txt && \
-    # Delete .env that was copied over
-    rm -f .env && \
-    # Give execution bit to startup script
-    chmod +x scripts/start.sh
+    rm -rf /var/lib/apt/lists/*
+
+# Only re-built if package requirements are updated
+WORKDIR /pingubot
+COPY ./requirements.txt .
+# Install python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+FROM build
+COPY . .

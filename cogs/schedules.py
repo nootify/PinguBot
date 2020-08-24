@@ -234,9 +234,9 @@ class Schedules(commands.Cog):
             # Format times to standard 12-hour instead of 24-hour
             try:
                 if isinstance(data, list):
-                    meetings = [(data["MTG_DAYS"],
-                                 datetime.strptime(data["START_TIME"], "%H%M").strftime("%I:%M %p"),
-                                 datetime.strptime(data["END_TIME"], "%H%M").strftime("%I:%M %p"))
+                    meetings = [(meeting["MTG_DAYS"],
+                                 datetime.strptime(meeting["START_TIME"], "%H%M").strftime("%I:%M %p"),
+                                 datetime.strptime(meeting["END_TIME"], "%H%M").strftime("%I:%M %p"))
                                  for meeting in data]
                     output = "\n".join("{}: {} - {}".format(*meeting) for meeting in meetings)
                 elif isinstance(data, dict) and len(data) > 1:
