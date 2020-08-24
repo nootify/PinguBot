@@ -3,6 +3,7 @@
 **/.gitignore
 **/.gitattributes
 **/venv
+**/.vscode
 # Temporary pingu files
 cache/**
 pingu.log

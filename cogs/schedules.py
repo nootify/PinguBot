@@ -151,8 +151,8 @@ class Schedules(commands.Cog):
     async def get_course(self, ctx, req_course: str, *, req_semester: str = None):
         """Retrieves information about a course based on the semester"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
-        if self.schedule_data is None or len(self.schedule_data) == 0:
-            raise commands.BadArgument("Schedule data not available. Try again in a few seconds.")
+        if not self.schedule_data or len(self.schedule_data) == 0:
+            raise commands.BadArgument("Schedule data not available. Try again later.")
 
         # Check the requested semester is valid
         # If not specified, default to current semester
@@ -228,60 +228,62 @@ class Schedules(commands.Cog):
             selected_course,
             " / ".join(course_titles))
 
-        def process_meeting_times(data):
+        def process_meeting_times(data, course_num: str, section_num: str):
             """Helper function that formats the meeting time hours of a section."""
             output = "-------------"
             # Format times to standard 12-hour instead of 24-hour
-            if isinstance(data, list):
-                output = "\n".join(
-                    f"{meeting['MTG_DAYS']}: "
-                    f"{datetime.strptime(meeting['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
-                    f"{datetime.strptime(meeting['END_TIME'], '%H%M').strftime('%I:%M %p')}"
-                    for meeting in data)
-            elif isinstance(data, dict) and len(data) > 1:
-                output = (f"{data['MTG_DAYS']}: "
-                          f"{datetime.strptime(data['START_TIME'], '%H%M').strftime('%I:%M %p')} - "
-                          f"{datetime.strptime(data['END_TIME'], '%H%M').strftime('%I:%M %p')}")
+            try:
+                if isinstance(data, list):
+                    meetings = [(data["MTG_DAYS"],
+                                 datetime.strptime(data["START_TIME"], "%H%M").strftime("%I:%M %p"),
+                                 datetime.strptime(data["END_TIME"], "%H%M").strftime("%I:%M %p"))
+                                 for meeting in data]
+                    output = "\n".join("{}: {} - {}".format(*meeting) for meeting in meetings)
+                elif isinstance(data, dict) and len(data) > 1:
+                    output = "{}: {} - {}".format(
+                        data["MTG_DAYS"],
+                        datetime.strptime(data["START_TIME"], "%H%M").strftime("%I:%M %p"),
+                        datetime.strptime(data["END_TIME"], "%H%M").strftime("%I:%M %p"))
+            except KeyError:
+                self.log.error("Missing schedule data for %s - %s", course_num, section_num)
+                output = "MISSING DATA"
+
             return output
 
         # Process each section and add it to the table
         for section in course_sections:
             instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
-            seats = f'{section["ENROLLED"]}/{section["CAPACITY"]}'
+            seats = f"{section['ENROLLED']}/{section['CAPACITY']}"
             meeting_times = process_meeting_times(
-                section["Schedule"] if "Schedule" in section else None)
+                section["Schedule"] if "Schedule" in section else None,
+                selected_course,
+                section["SECTION"])
             schedule_display.add_row([section["SECTION"],
                                       instructor,
                                       seats,
-                                      section["INSTRUCTIONMETHOD"],
+                                      section["INSTRUCTIONMETHOD"].replace(" ", "\n"),
                                       meeting_times])
 
-        def shrink_header(table: PrettyTable, start: int, lines: int):
-            """nap told me to fix this"""
-            output = f"```{table.get_string(start=start, end=start+lines)}```"
+        # In a future version of discord.py (v1.5 or v2.0), this will be replaced
+        # with the library's built-in paginator
+        def shrink_output(table: PrettyTable, start: int, lines: int, is_header: bool):
+            """Shrink the text to be under Discord's max message length of 2000 characters"""
+            output = f"```{table.get_string(start=start, end=start+lines, header=is_header)}```"
             while len(output) > 2000:
                 lines -= 1
-                output = f"```{table.get_string(start=start, end=start+lines)}```"
+                output = f"```{table.get_string(start=start, end=start+lines, header=is_header)}```"
             return output, lines
 
-        def shrink_body(table: PrettyTable, start: int, lines: int):
-            """this one too"""
-            output = f"```{table.get_string(start=start, end=start+lines, header=False)}```"
-            while len(output) > 2000:
-                lines -= 1
-                output = f"```{table.get_string(start=start, end=start+lines, header=False)}```"
-            return output, lines
-
-        # Paginate table output because of Discord's 2000 character limit per message
+        # Paginate table output
         await ctx.send(header)
         max_lines = 20
         counter = 0
-        output, max_lines = shrink_header(schedule_display, counter, max_lines)
+        output, max_lines = shrink_output(schedule_display, counter, max_lines, True)
         while len(output) > 6:
             await ctx.send(output)
             await asyncio.sleep(1)
             counter += max_lines
-            output, max_lines = shrink_body(schedule_display, counter, max_lines)
+            output, max_lines = shrink_output(schedule_display, counter, max_lines, False)
 
     @get_course.error
     async def get_course_error(self, ctx, error):

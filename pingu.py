@@ -5,7 +5,6 @@ Afterwards, run pingu.py normally as you would any Python script.
 """
 import asyncio
 import logging
-import os
 import sys
 import traceback
 from datetime import datetime
@@ -69,7 +68,8 @@ class Pingu(commands.Bot):
     async def on_command_error(self, ctx: commands.Context, error): # pylint: disable=arguments-differ
         """Errors that occur while processing or executing a command."""
         # Errors that are unnecessary or are handled locally in each cog
-        ignored_errors = (commands.CommandNotFound, commands.MissingRequiredArgument)
+        ignored_errors = (commands.CheckFailure, commands.CommandNotFound,
+                          commands.MissingRequiredArgument, commands.TooManyArguments)
         if isinstance(error, ignored_errors):
             self.log.debug("%s: %s", type(error).__name__, error)
             return
@@ -89,7 +89,7 @@ class Pingu(commands.Bot):
         # A catch-all formatter for any CommandError related messages
         if isinstance(error, commands.CommandError):
             self.log.info("%s: %s", type(error).__name__, error)
-            await ctx.send(f"{error_icon} {error}. Check the logs for more details.")
+            await ctx.send(f"{error_icon} {error} Check the logs for more details.")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
 

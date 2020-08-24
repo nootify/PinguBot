@@ -53,7 +53,7 @@ class Clown(commands.Cog):
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
         """Shows who the clown is in a server"""
-        if ctx.invoked_subcommand is None:
+        if not ctx.invoked_subcommand:
             if not self.server_clowns:
                 raise commands.BadArgument("Unable to retrieve data. Try again later.")
             if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
@@ -66,8 +66,8 @@ class Clown(commands.Cog):
                 server_clown = await commands.MemberConverter().convert(
                     ctx, str(self.server_clowns[ctx.guild.id]))
                 self.log.debug(self.server_clowns[ctx.guild.id])
-            except commands.BadArgument:
-                raise commands.BadArgument("The clown is no longer in the server.")
+            except commands.BadArgument as exc:
+                raise commands.BadArgument("The clown is no longer in the server.") from exc
             else:
                 info_icon = self.bot.icons["info"]
                 if not server_clown.nick:
@@ -86,10 +86,12 @@ class Clown(commands.Cog):
             raise commands.BadArgument("1900 characters or less, por favor.")
         try:
             mention = await commands.MemberConverter().convert(ctx, mention)
-        except commands.BadArgument:
-            raise commands.BadArgument("This user is not in the server or you didn't @ them.")
-        if mention.bot:
-            raise commands.BadArgument("This command is unavailable for bots.")
+        except commands.BadArgument as exc:
+            raise commands.BadArgument(
+                "This user is not in the server or you didn't @ them.") from exc
+        else:
+            if mention.bot:
+                raise commands.BadArgument("This command is unavailable for bots.")
 
         # Pull latest data from database
         self.query = f"SELECT clown_id, clowned_on FROM clowns WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
@@ -159,8 +161,8 @@ class Clown(commands.Cog):
 
     @nominate_clown.error
     async def nominate_clown_error(self, ctx, error):
-        """Error check to see if a clown was not mentioned"""
-        error_icon = self.bot.icons['fail']
+        """Error check for missing arguments"""
+        error_icon = self.bot.icons["fail"]
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "mention":
                 await ctx.send(f"{error_icon} No candidate was specified.")
@@ -201,7 +203,8 @@ class Clown(commands.Cog):
         # Check the clown is in the voice channel
         if not ctx.author.voice:
             raise commands.BadArgument("You are not connected to a voice channel.")
-        clowns_found = [member for member in ctx.author.voice.channel.members if member.id == self.server_clowns[ctx.guild.id]]
+        clowns_found = [member for member in ctx.author.voice.channel.members
+                        if member.id == self.server_clowns[ctx.guild.id]]
         if len(clowns_found) == 0:
             raise commands.BadArgument("Clown is not in the voice channel.")
 

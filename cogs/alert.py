@@ -10,11 +10,10 @@ from pytz import timezone
 
 class Alert(commands.Cog):
     """You already know what this does 👀"""
-    # pylint: disable=line-too-long
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
-        self.message_location = None  # Singular location and not per-guild because it's by design
+        self.message_location = None  # Singular location and not per server
         self.sent_message = None
 
     async def cog_check(self, ctx): # pylint: disable=invalid-overridden-method
@@ -36,7 +35,8 @@ class Alert(commands.Cog):
         if requested_guild_id is None:
             self.log.info("No location specified; sending in current channel")
             preliminary_location = ctx.message.channel
-            # await ctx.send(f"{self.bot.icons['info']} No IDs specified. Sending message in current channel.")
+            # await ctx.send(
+            #     f"{self.bot.icons['info']} No IDs specified. Sending message in current channel.")
         elif requested_channel_id is None:
             raise commands.BadArgument("Missing channel ID to send in server.")
 
@@ -46,9 +46,9 @@ class Alert(commands.Cog):
             try:
                 requested_guild_id = int(requested_guild_id)
                 requested_channel_id = int(requested_channel_id)
-            except ValueError:
+            except ValueError as exc:
                 self.log.error("Failed to parse server ID and/or text channel ID")
-                raise commands.BadArgument("Given ID(s) were not a numerical value.")
+                raise commands.BadArgument("Given ID(s) were not a numerical value.") from exc
 
             # Search for the server using its ID
             selected_guild = self.bot.get_guild(requested_guild_id)
@@ -62,7 +62,8 @@ class Alert(commands.Cog):
             selected_channel = selected_guild.get_channel(requested_channel_id)
             if selected_channel is None:
                 self.log.error("Unable to find requested channel")
-                raise commands.BadArgument("Specified text channel does not exist or read permission(s) were not given")
+                raise commands.BadArgument(
+                    "Specified text channel does not exist or read permission(s) were not given")
             self.log.info("Found requested text channel (id: %s, name: %s)",
                           selected_channel.id, selected_channel.name)
 
@@ -97,7 +98,8 @@ class Alert(commands.Cog):
         """Become the King of 12:34 in a channel. Complains if admin abuse is detected."""
         # Python times, timezones, and daylight savings is hard
         utc = timezone("UTC")
-        eastern = timezone("America/New_York")  # Accounts for daylight savings ("US/Eastern" is EST only)
+        # Account for daylight savings ("US/Eastern" is EST only)
+        eastern = timezone("America/New_York")
         now = utc.localize(datetime.utcnow())
         if self.message_location is not None:
             today_12am = eastern.localize(datetime(now.year, now.month, now.day, 0, 34))
@@ -107,28 +109,37 @@ class Alert(commands.Cog):
             debug_mode = False
             if debug_mode:
                 wait_this_long = 60
-                self.log.info("UTC: %s | Eastern: %s", now.astimezone(utc), now.astimezone(eastern))
-                self.log.info("UTC: %s | Eastern: %s", today_12am.astimezone(utc), today_12am.astimezone(eastern))
-                self.log.info("UTC: %s | Eastern: %s", today_12pm.astimezone(utc), today_12pm.astimezone(eastern))
-                self.log.info("UTC: %s | Eastern: %s", tomorrow_12am.astimezone(utc), tomorrow_12am.astimezone(eastern))
-                self.log.warning("DEBUG MODE ENABLED: Firing in the next %s seconds", wait_this_long)
+                self.log.info("UTC: %s | Eastern: %s",
+                    now.astimezone(utc), now.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s",
+                    today_12am.astimezone(utc), today_12am.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s",
+                    today_12pm.astimezone(utc), today_12pm.astimezone(eastern))
+                self.log.info("UTC: %s | Eastern: %s",
+                    tomorrow_12am.astimezone(utc), tomorrow_12am.astimezone(eastern))
+                self.log.warning("DEBUG MODE ENABLED: Firing in the next %s seconds",
+                    wait_this_long)
                 await asyncio.sleep(wait_this_long)
             elif now <= today_12am:
                 wait = (today_12am - now).total_seconds()
-                self.log.info("Sending message at 12:34 AM (%s left)", str(timedelta(seconds=round(wait))))
+                self.log.info("Sending message at 12:34 AM (%s left)",
+                              str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(today_12am)
             elif now <= today_12pm:
                 wait = (today_12pm - now).total_seconds()
-                self.log.info("Sending message at 12:34 PM (%s left)", str(timedelta(seconds=round(wait))))
+                self.log.info("Sending message at 12:34 PM (%s left)",
+                              str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(today_12pm)
             else:
                 wait = (tomorrow_12am - now).total_seconds()
-                self.log.info("Sending message at 12:34 AM tomorrow (%s left)", str(timedelta(seconds=round(wait))))
+                self.log.info("Sending message at 12:34 AM tomorrow (%s left)",
+                              str(timedelta(seconds=round(wait))))
                 await discord.utils.sleep_until(tomorrow_12am)
 
         # Things could have happened in the meantime, so check again
         if self.bot.get_channel(self.message_location.id) is not None:
-            self.log.info("Sending message to text channel (id: %s, name: %s)", self.message_location.id, self.message_location.name)
+            self.log.info("Sending message to text channel (id: %s, name: %s)",
+                          self.message_location.id, self.message_location.name)
             self.sent_message = await self.message_location.send("12:34")
         else:
             self.log.error("Channel disappeared before message was sent; stopping task")
@@ -149,16 +160,19 @@ class Alert(commands.Cog):
             if message_guild.id == 143909103951937536 or message_guild.id == 276571138455502848:
                 self_permissions = message.channel.permissions_for(message_guild.me)
                 if self_permissions.view_audit_log:
-                    async for entry in message_guild.audit_logs(limit=20, action=discord.AuditLogAction.message_delete):
+                    async for entry in message_guild.audit_logs(
+                        limit=20, action=discord.AuditLogAction.message_delete):
                         if entry.target == message_guild.me:
                             message_deleter = entry.user
                             break
 
             # Checking who deleted the message requires the Audit Log permission
             if message_deleter is None:
-                self.sent_message = await message.channel.send("Stop deleting my messages >:(")
+                self.sent_message = await message.channel.send(
+                    "Stop deleting my messages >:(")
             else:
-                self.sent_message = await message.channel.send(f"{message_deleter.mention} Stop deleting my messages >:(")
+                self.sent_message = await message.channel.send(
+                    f"{message_deleter.mention} Stop deleting my messages >:(")
 
 
 def setup(bot):

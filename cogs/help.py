@@ -1,8 +1,6 @@
 """This module is used to subclass the built-in Help class in discord.py so that
 it uses embed formatting instead of a simple code block output.
 """
-from datetime import datetime
-
 import discord
 from discord.ext import commands
 
@@ -18,7 +16,8 @@ class PinguHelp(commands.HelpCommand):
 
     def get_description(self):
         """Returns a helpful tip for the user."""
-        return "Type {0}{1} <Module> or {0}{1} `<command>` for more info.\nModule names are Case Sensitive.".format(
+        return ("Type {0}{1} <Module> or {0}{1} `<command>` for more info.\n"
+                "Module names are Case Sensitive.").format(
             self.clean_prefix, self.invoked_with)
 
     def get_command_signature(self, command):
@@ -90,7 +89,7 @@ class PinguHelp(commands.HelpCommand):
 
     def command_not_found(self, string: str):
         return f":x: `{string}` is not a valid command"
-    
+
     def subcommand_not_found(self, command, string: str):
         return f":x: `{string}` is not a valid option for the `{command}` command"
 

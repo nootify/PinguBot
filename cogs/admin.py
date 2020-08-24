@@ -75,7 +75,7 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
 
         # Pingu
         bot_ref = self.bot.user
-        pingu_version = settings.VERSION
+        pingu_version = settings.VERSION # pylint: disable=no-member
         bot_owner = self.bot.get_user(self.bot.owner_id)
 
         # System
@@ -115,7 +115,7 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
             sys_mem_percent = 100 - sys_mem.percent # Memory usage of the OS
 
         # Processes
-        bot_threads = [str(thread.id) for thread in proc.threads()]
+        bot_threads = [thread.id for thread in proc.threads()]
         bot_threads.sort()
 
         # Uptime calculations
@@ -140,18 +140,21 @@ class Admin(commands.Cog):  # pylint: disable=missing-class-docstring
              "**OS**\n{}\n**CPU Cores**\nLogical: {}, Physical: {}\n**RAM**\nTotal: {}".format(
                  os_name, total_cores, physical_cores, sys_mem_total), True),
             ("Quick Overview",
-             "**Guilds:** {}\n**Channels:** {}\n**Users:** {}\n**Cogs:** {}\n**Commands:** {}".format(
+             ("**Guilds:** {}\n**Channels:** {}\n**Users:** {}\n"
+             "**Cogs:** {}\n**Commands:** {}").format(
                  total_servers, total_channels, total_unique_users,
                  total_cogs, total_commands), True),
             ("Usage",
-             "**CPU**\nSystem: {:.02f}%\nBot: {:.02f}%\n**RAM**\nMain: {} ({:.02f}%)\nAll: {} ({:.02f}%)\nAvailable: {} ({:.02f}%)".format(
+             ("**CPU**\nSystem: {:.02f}%\nBot: {:.02f}%\n"
+              "**RAM**\nMain: {} ({:.02f}%)\n"
+              "All: {} ({:.02f}%)\nAvailable: {} ({:.02f}%)").format(
                  system_cpu_percent, bot_cpu_percent,
                  main_mem_used, main_mem_percent,
                  all_mem_used, all_mem_percent,
                  sys_mem_available, sys_mem_percent), True),
             ("Processes",
              "**PIDs**\n{}\n**Threads**\n{}\n**Uptime**\n{}".format(
-                 ", ".join(thread_id for thread_id in bot_threads),
+                 ", ".join(str(thread_id) for thread_id in bot_threads),
                  len(bot_threads), total_uptime), True),
             ("Sharding",
              "Sharding not enabled", True)
