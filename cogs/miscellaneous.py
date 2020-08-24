@@ -128,9 +128,9 @@ class Miscellaneous(commands.Cog):
                 ping_icon, bot_ping, py_version, dpy_version))
         stats_fields = [
             ("Pingu",
-             "**Name:** {}\n**Tag:** {}\n**ID:** {}\n**Version:** {}\n**Owner**\n{}#{}".format(
+             "**Name:** {}\n**Tag:** {}\n**ID:** {}\n**Version:** {}\n**Owner**\n{}".format(
                  bot_ref.name, bot_ref.discriminator, bot_ref.id,
-                 pingu_version, bot_owner.name, bot_owner.discriminator), True),
+                 pingu_version, bot_owner), True),
             ("System",
              "**OS**\n{}\n**CPU Cores**\nLogical: {}, Physical: {}\n**RAM**\nTotal: {}".format(
                  os_name, total_cores, physical_cores, sys_mem_total), True),

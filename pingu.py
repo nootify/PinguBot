@@ -62,6 +62,10 @@ class Pingu(commands.Bot):
         if message.author.bot or not message.guild:
             return
 
+        # This makes sure the owner_id gets set and the query is only run once
+        if not self.owner_id:
+            await self.is_owner(message.author)
+
         # Allow information to pass through
         await super().process_commands(message)
 
