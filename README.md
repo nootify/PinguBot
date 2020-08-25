@@ -1,12 +1,12 @@
 # PinguBot
-A simple Discord bot running on the discord.py library.
+Runs on the Discord.py library. Check `requirements.txt` for all the goodies.
 
 ## Requirements
-Python 3.8+, Docker, docker-compose, and a copy of this repo is required.
+Python 3.8+ and a copy of this repo is required.
 
 Python 3.7 does not support unicode CLDR emoji, a la `\N{grinning face with smiling eyes}`.
 
-It's highly recommended to run this in a Docker container, instead of running it manually.
+Docker and docker-compose is highly recommended, but not required.
 
 ## Installation
 Run this in docker-compose to create the image:
@@ -20,7 +20,8 @@ Run this in docker-compose to deploy PinguBot:
 docker-compose up -d
 ```
 
-You can also do this to install and deploy in one go:
+## TL;DR
+Install and deploy in one go:
 ```bash
 docker-compose up -d --build
 ```
