@@ -27,7 +27,7 @@ class Schedules(commands.Cog):
         self.schedule_updater.cancel() # pylint: disable=no-member
         self.log.info("Cog unloaded; schedule updater no longer running")
 
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=5)
     async def schedule_updater(self):
         """Retrieves schedule data from the current and previous semester."""
 
@@ -69,13 +69,13 @@ class Schedules(commands.Cog):
                 # print(last_updated)
                 # Only send a request if the cached file is an hour old or older (3600+ seconds)
                 if last_updated >= 3600:
-                    self.log.info("Cache file '%s' is stale; updating schedule data", filename)
+                    self.log.debug("Cache file '%s' is stale; updating schedule data", filename)
                     await update_cache_file(filename, endpoint)
                 else:
-                    self.log.info("Cache file '%s' is too fresh; keeping current schedule data",
-                                  filename)
+                    self.log.debug("Cache file '%s' is too fresh; keeping current schedule data",
+                                   filename)
             else:
-                self.log.info("Cache file '%s' not found; downloading schedule data", filename)
+                self.log.info("Cache file '%s' was not found; downloading schedule data", filename)
                 await update_cache_file(filename, endpoint)
 
         async def update_cache_memory(filename: str, memory_location: str) -> None:

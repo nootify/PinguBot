@@ -33,7 +33,10 @@ class Clown(commands.Cog):
         """Updates the memory cache on startup or entry update"""
         async with self.bot.db.acquire() as conn:
             results = await conn.fetch("SELECT * FROM clowns;")
-            self.server_clowns = {result["guild_id"]: result["clown_id"] for result in results}
+            self.server_clowns = {result["guild_id"]: {
+                "clown_id": result["clown_id"],
+                "clowned_on": result["clowned_on"]
+            } for result in results}
         self.log.info("Refreshed memory cache of server clowns")
 
     @tasks.loop(count=1)
@@ -58,7 +61,8 @@ class Clown(commands.Cog):
 
         if not self.server_clowns:
             raise commands.BadArgument("Unable to retrieve data. Try again later.")
-        if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
+        if (ctx.guild.id not in self.server_clowns or
+            not self.server_clowns[ctx.guild.id]["clown_id"]):
             info_icon = self.bot.icons["info"]
             await ctx.send(f"{info_icon} The clown is no one.")
             return
@@ -66,8 +70,8 @@ class Clown(commands.Cog):
         # MemberConverter requires a string value
         try:
             server_clown = await commands.MemberConverter().convert(
-                ctx, str(self.server_clowns[ctx.guild.id]))
-            self.log.debug(self.server_clowns[ctx.guild.id])
+                ctx, str(self.server_clowns[ctx.guild.id]["clown_id"]))
+            self.log.debug(self.server_clowns[ctx.guild.id]["clown_id"])
         except commands.BadArgument as exc:
             raise commands.BadArgument("The clown is no longer in the server.") from exc
         else:
@@ -103,7 +107,7 @@ class Clown(commands.Cog):
 
         # Prevent the clown from un-clowning themselves until a week passed
         if (self.result and
-                (self.result["clowned_on"] + timedelta(days=7)) >= date.today() and
+                (date.today() - self.result["clowned_on"] <= timedelta(days=7)) and
                 self.result["clown_id"] == ctx.message.author.id):
             raise commands.BadArgument("Clowns are not allowed to do that.")
 
@@ -194,14 +198,15 @@ class Clown(commands.Cog):
     async def prepare_clown(self, ctx):
         """Ensures all the conditions are good before connecting to voice"""
         # If initial set command was not run or clown in server is set to no one
-        if ctx.guild.id not in self.server_clowns or not self.server_clowns[ctx.guild.id]:
+        if (ctx.guild.id not in self.server_clowns or
+            not self.server_clowns[ctx.guild.id]["clown_id"]):
             raise commands.BadArgument("No clown was set.")
 
         # Check the clown is in the voice channel
         if not ctx.author.voice:
             raise commands.BadArgument("You are not connected to a voice channel.")
         clowns_found = [member for member in ctx.author.voice.channel.members
-                        if member.id == self.server_clowns[ctx.guild.id]]
+                        if member.id == self.server_clowns[ctx.guild.id]["clown_id"]]
         if len(clowns_found) == 0:
             raise commands.BadArgument("Clown is not in the voice channel.")
 
@@ -235,9 +240,10 @@ class Clown(commands.Cog):
         """
         await self.bot.wait_until_ready()
         if not before.channel and after.channel:
-            current_server_id = after.channel.guild.id
-            if (current_server_id in self.server_clowns and
-                    member.id == self.server_clowns[current_server_id]):
+            server_id = after.channel.guild.id
+            if (server_id in self.server_clowns and
+                member.id == self.server_clowns[server_id]["clown_id"] and
+                (datetime.now().date() - self.server_clowns[server_id]["clowned_on"] <= timedelta(days=7))):
                 await asyncio.sleep(1) # Buggy sound without delay
                 after_cache = after.channel
                 if after_cache and not after_cache.guild.voice_client:
