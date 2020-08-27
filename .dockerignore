@@ -4,6 +4,7 @@
 **/.git
 **/.gitignore
 **/.gitattributes
+**/lavalink
 **/venv
 **/.vscode
 # Temporary pingu files

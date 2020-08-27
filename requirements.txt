@@ -9,7 +9,7 @@ psutil
 pylint
 python-dotenv
 pytz
-youtube_dl
+wavelink
 wheel
 
 ###### Requirements with Version Specifiers ######`

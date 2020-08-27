@@ -22,7 +22,7 @@ class Pingu(commands.Bot):
     """
     def __init__(self):
         self.boot_time = datetime.now()
-        self.default = settings.default
+        self.default = settings.DEFAULT
         self.current = {"activity": self.default["activity"],
                         "desc": self.default["desc"],
                         "prefix": self.default["prefix"],
@@ -31,6 +31,8 @@ class Pingu(commands.Bot):
         self.icons = {"fail": ":x:",
                       "info": ":information_source:",
                       "success": ":white_check_mark:"}
+        self.lavalink = settings.LAVALINK
+
         self.log = logging.getLogger("pingu")
         self.log.info("Starting instance")
 
@@ -112,7 +114,7 @@ async def attach_db(bot: Pingu):
 if __name__ == "__main__":
     # Logs events to the log file and the console
     FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
-    DATEFMT = "%m-%d-%Y %I:%M:%S %p"
+    DATEFMT = "%m-%d-%Y %I:%M:%S %p %Z"
     logFormat = logging.Formatter(fmt=FORMAT, datefmt=DATEFMT)
     logging.basicConfig(level=logging.INFO,
                         format=FORMAT,

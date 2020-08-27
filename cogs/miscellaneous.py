@@ -54,9 +54,9 @@ class Miscellaneous(commands.Cog):
             else:
                 await ctx.send(f"{self.bot.icons['fail']} Shutdown aborted by user.")
 
-    @commands.command(name="stats", aliases=["stat", "about"])
+    @commands.command(name="stats", aliases=["about"])
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def debug_info(self, ctx): # pylint: disable=too-many-locals
+    async def pingu_stats(self, ctx): # pylint: disable=too-many-locals
         """Shows more information about Pingu"""
         # Embed header and footer
         py_version = platform.python_version()

@@ -9,11 +9,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-default = {"activity": discord.Activity(type=discord.ActivityType.watching,
+DEFAULT = {"activity": discord.Activity(type=discord.ActivityType.watching,
                                         name="Pingu in the City"),
            "desc": "Noot Noot at your service",
            "prefix": "%",
            "status": discord.Status.online}
+COGS = ["alert", "help", "miscellaneous", "music", "schedules"]
+LAVALINK = {"HOST": os.environ.get("LAVALINKHOST"),
+            "PORT": os.environ.get("LAVALINKPORT"),
+            "PASSWORD": os.environ.get("LAVALINKPASSWORD"),
+            "REGION": os.environ.get("LAVALINKREGION")}
 TOKEN = os.environ.get("PINGU_TOKEN")
-COGS = ["alert", "clown", "help", "miscellaneous", "schedules"]
 VERSION = "0.0.3"

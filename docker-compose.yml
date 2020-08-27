@@ -8,7 +8,12 @@ services:
       - scripts/start.sh
     depends_on:
       - db
+      - lavalink
     environment:
+      - LAVALINKHOST
+      - LAVALINKPORT
+      - LAVALINKPASSWORD
+      - LAVALINKREGION
       - PINGU_TOKEN
       - PGHOST
       - PGUSER
@@ -35,6 +40,13 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database/template.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  lavalink:
+    container_name: pingubot-lavalink
+    image: fredboat/lavalink:master-v3
+    restart: on-failure
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
 
 volumes:
   postgres-data:
