@@ -28,7 +28,8 @@ class Pingu(commands.Bot):
                         "prefix": self.default["prefix"],
                         "status": self.default["status"]}
         self.embed_colour = discord.Colour.from_rgb(138, 181, 252)
-        self.icons = {"fail": ":x:",
+        self.icons = {"audio": ":speaker:",
+                      "fail": ":x:",
                       "info": ":information_source:",
                       "success": ":white_check_mark:"}
         self.lavalink = settings.LAVALINK

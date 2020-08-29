@@ -73,19 +73,25 @@ class PinguHelp(commands.HelpCommand):
         if group.help:
             embed.description = group.help
 
-        if isinstance(group, commands.Group):
-            filtered = await self.filter_commands(group.commands, sort=True)
-            for command in filtered:
-                embed.add_field(name=self.get_command_signature(command),
-                                value=command.short_doc or "...",
-                                inline=False)
+        # if isinstance(group, commands.Group):
+        filtered = await self.filter_commands(group.commands, sort=True)
+        for command in filtered:
+            embed.add_field(name=self.get_command_signature(command),
+                            value=command.short_doc or "...",
+                            inline=False)
 
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
 
-    # Assign individual command help output to the group command help output
-    send_command_help = send_group_help
+    async def send_command_help(self, command):
+        embed = discord.Embed(title=self.get_command_signature(command),
+                              description=command.short_doc or "...",
+                              colour=self.COLOUR)
+
+        embed.set_footer(text=f"Requested by: {self.context.author}",
+                         icon_url=self.context.author.avatar_url)
+        await self.get_destination().send(embed=embed)
 
     def command_not_found(self, string: str):
         return f":x: `{string}` is not a valid command"

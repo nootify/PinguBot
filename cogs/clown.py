@@ -7,6 +7,7 @@ import logging
 from datetime import date, datetime, timedelta
 
 import discord
+import wavelink
 from discord.ext import commands, tasks
 
 
@@ -21,11 +22,36 @@ class Clown(commands.Cog):
         self.update_cache.start() # pylint: disable=no-member
         self.log = logging.getLogger(__name__)
 
+        # Does not overwrite the client on cog reload
+        if not hasattr(bot, 'wavelink'):
+            self.bot.wavelink = wavelink.Client(bot=self.bot)
+
+        self.bot.loop.create_task(self.start_nodes())
+
+    async def start_nodes(self):
+        """Establish connections to the Lavalink server"""
+        await self.bot.wait_until_ready()
+
+        node_name = "CLOWN"
+        node = self.bot.wavelink.get_node(node_name)
+        if not node:
+            node = await self.bot.wavelink.initiate_node(
+                host=self.bot.lavalink["HOST"],
+                port=int(self.bot.lavalink["PORT"]),
+                rest_uri=f"http://{self.bot.lavalink['HOST']}:{self.bot.lavalink['PORT']}",
+                password=self.bot.lavalink["PASSWORD"],
+                identifier=node_name,
+                region=self.bot.lavalink["REGION"])
+
+        # Disconnect Pingu when the audio finishes playing or an error occurs
+        node.set_hook(self.on_event_hook)
+
+    async def on_event_hook(self, event):
+        """Catch events from a node"""
+        if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
+            await event.player.disconnect()
+
     def cog_unload(self):
-        self.polls = {}
-        self.query = None
-        self.result = None
-        self.server_clowns = None
         self.log.info("Cog unloaded; disconnecting from voice channels")
 
     @tasks.loop(count=1)
@@ -53,7 +79,7 @@ class Clown(commands.Cog):
         await self.bot.wait_until_ready()
 
     @commands.group(name="clown")
-    @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
+    @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
         """Shows who the clown is in a server"""
         if ctx.invoked_subcommand:
@@ -176,99 +202,95 @@ class Clown(commands.Cog):
                 await ctx.send(f"{error_icon} No reason was provided for the nomination.")
             return
 
-    @clown.command(name="honk", case_insensitive=True, hidden=True)
-    @commands.bot_has_guild_permissions(connect=True, speak=True)
-    async def honk(self, ctx):
-        """Honk at the clown when they're in the same voice channel as you"""
-        def cleanup(error):
-            if error:
-                self.log.error("voice_client: %s", error)
-            disconnect = ctx.voice_client.disconnect()
-            run = asyncio.run_coroutine_threadsafe(disconnect, self.bot.loop)
+    @clown.command(name="honk", case_insensitive=True)
+    # @commands.bot_has_guild_permissions(connect=True, speak=True) # This throws a CheckFailure
+    async def honk(self, ctx: commands.Context, *, channel: discord.VoiceChannel=None):
+        """Honk at the clown they're in a voice channel"""
+        if not channel:
             try:
-                run.result()
-            except Exception as exc: # pylint: disable=broad-except
-                self.log.error("%s: %s", type(exc).__name__, exc)
+                channel = ctx.author.voice.channel
+            except AttributeError:
+                raise commands.BadArgument("Join a voice channel or specify it by name.")
 
-        file_name = "soundfx/honk.mp3"
-        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(file_name))
-        ctx.voice_client.play(source, after=cleanup)
+        # Check the clown is in the voice channel
+        connected_users = set(member.id for member in channel.members)
+        if self.server_clowns[ctx.guild.id]["clown_id"] not in connected_users:
+            raise commands.BadArgument("Clown is not in the voice channel.")
+
+        player = self.bot.wavelink.get_player(ctx.guild.id)
+        if player.is_connected:
+            raise commands.BadArgument("Something is already playing in a voice channel.")
+        if not await self.can_connect(channel, ctx=ctx):
+            return
+
+        tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
+        await player.connect(channel.id)
+        await player.play(tracks[0])
 
     @honk.before_invoke
     async def prepare_clown(self, ctx):
         """Ensures all the conditions are good before connecting to voice"""
-        # If initial set command was not run or clown in server is set to no one
+        # If no record exists in the database
         if (ctx.guild.id not in self.server_clowns or
             not self.server_clowns[ctx.guild.id]["clown_id"]):
             raise commands.BadArgument("No clown was set.")
 
-        # Check the clown is in the voice channel
-        if not ctx.author.voice:
-            raise commands.BadArgument("You are not connected to a voice channel.")
-        clowns_found = [member for member in ctx.author.voice.channel.members
-                        if member.id == self.server_clowns[ctx.guild.id]["clown_id"]]
-        if len(clowns_found) == 0:
-            raise commands.BadArgument("Clown is not in the voice channel.")
-
-        # Check if bot is already connected to a voice channel
-        if not ctx.voice_client:
-            await self.connect_voice(ctx.author.voice.channel, ctx=ctx)
-        elif ctx.voice_client.is_playing():
-            raise commands.BadArgument("There is audio already playing in a channel.")
-
-    async def connect_voice(self, voice: discord.VoiceChannel, ctx: commands.Context = None):
+    async def can_connect(self, voice: discord.VoiceChannel, ctx: commands.Context=None) -> bool:
         """Custom voice channel permission checker that was implemented because...
         1. @commands.bot_has_guild_permissions(...) decorator only checks if the bot has
             this permission in one of the roles it has in the SERVER, and the
         2. @commands.bot_has_permissions(...) decorator checks the permissions in the
             current TEXT channel, but not the actual voice channel.
+        3. Wavelink does not check for permissions before connecting, so no errors can
+           be emitted.
         """
         self_permissions = voice.permissions_for(voice.guild.me)
         if self_permissions.connect and self_permissions.speak:
-            await voice.connect()
-            return
+            return True
+
         if ctx:
-            required_perms = {"connect": self_permissions.connect, "speak": self_permissions.speak}
+            required_perms = {"connect": self_permissions.connect,
+                              "speak": self_permissions.speak,
+                              "view channel": self_permissions.view_channel}
             missing_perms = "`, `".join(perm for perm, val in required_perms.items() if not val)
             icon = self.bot.icons["fail"]
-            ctx.send(f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
+            await ctx.send(f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
+        return False
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member, before, after):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         """Triggers when the clown joins a voice channel and was not previously in another voice
-        channel in the server. It will also ignore rapid connects and disconnects from the clown.
+        channel in the server.
+
+        It will ignore rapid connects and disconnects from the clown, and will only reconnect
+        when the audio playing fully finishes and Pingu disconnects from the voice channel.
         """
-        await self.bot.wait_until_ready()
+        # Ignore other music bots joining voice channels
+        if member.bot:
+            return
+
+        # Skip if clown is not connecting to a voice channel in the guild for the first time,
+        # meaning they were not in any voice channels in the guild, but then connected to one
         if not before.channel and after.channel:
-            server_id = after.channel.guild.id
-            if (server_id in self.server_clowns and
-                member.id == self.server_clowns[server_id]["clown_id"] and
-                (datetime.now().date() - self.server_clowns[server_id]["clowned_on"] <= timedelta(days=7))):
-                await asyncio.sleep(1) # Buggy sound without delay
-                after_cache = after.channel
-                if after_cache and not after_cache.guild.voice_client:
-                    await self.connect_voice(after_cache)
+            # Skip if the server id does not exist in the records
+            if member.guild.id not in self.server_clowns:
+                self.log.debug("Guild does not exist in the database records")
+                return
+            # Skip if the clown id does not match records
+            if member.id != self.server_clowns[member.guild.id]["clown_id"]:
+                self.log.debug("Clown does not match database records")
+                return
+            # Skip if a week or more passed
+            if (datetime.now().date() - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7):
+                self.log.debug("New nomination is needed for the auto-honk feature to activate")
+                return
 
-                    if (after_cache.guild.voice_client and
-                            not after_cache.guild.voice_client.is_playing()):
-                        sound_file = "soundfx/honk.mp3"
-                        sound_source = discord.PCMVolumeTransformer(
-                            discord.FFmpegPCMAudio(
-                                executable="/usr/bin/ffmpeg",
-                                source=sound_file))
+            player = self.bot.wavelink.get_player(member.guild.id)
+            if await self.can_connect(after.channel) and not player.is_connected:
+                tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
+                await player.connect(after.channel.id)
+                await player.play(tracks[0])
 
-                        def cleanup(error):
-                            if error:
-                                self.log.error("voice_client: %s", error)
-                            disconnect = after_cache.guild.voice_client.disconnect()
-                            run = asyncio.run_coroutine_threadsafe(disconnect, self.bot.loop)
-                            try:
-                                run.result()
-                            except Exception as exc: # pylint: disable=broad-except
-                                self.log.error("%s: %s", type(exc).__name__, exc)
-
-                        after_cache.guild.voice_client.play(
-                            sound_source, after=cleanup)
 
 def setup(bot):
     """Adds this module in as a cog to Pingu."""

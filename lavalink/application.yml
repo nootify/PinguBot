@@ -3,16 +3,16 @@ server: # REST and WS server
   address: 0.0.0.0
 lavalink:
   server:
-    password: "<PUT A NEW PASSWORD HERE>" # You should change this
+    password: "youshallnotpass" # You should change this
     sources:
-      youtube: true
-      bandcamp: true
-      soundcloud: true
-      twitch: true
-      vimeo: true
-      mixer: true
-      http: true
-      local: false
+      youtube: false
+      bandcamp: false
+      soundcloud: false
+      twitch: false
+      vimeo: false
+      mixer: false
+      http: false
+      local: true
     bufferDurationMs: 400
     youtubePlaylistLoadLimit: 6 # Number of pages at 100 each
     youtubeSearchEnabled: true

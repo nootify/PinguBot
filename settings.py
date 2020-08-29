@@ -14,7 +14,7 @@ DEFAULT = {"activity": discord.Activity(type=discord.ActivityType.watching,
            "desc": "Noot Noot at your service",
            "prefix": "%",
            "status": discord.Status.online}
-COGS = ["alert", "help", "miscellaneous", "music", "schedules"]
+COGS = ["alert", "clown", "help", "miscellaneous", "schedules"]
 LAVALINK = {"HOST": os.environ.get("LAVALINKHOST"),
             "PORT": os.environ.get("LAVALINKPORT"),
             "PASSWORD": os.environ.get("LAVALINKPASSWORD"),

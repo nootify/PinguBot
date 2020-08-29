@@ -1,4 +1,5 @@
-"""This module houses music/video streaming.
+"""This module houses music/video streaming. There's unresolved bugs, so don't
+use this thing yet.
 Base implementation taken from:
 https://github.com/PythonistaGuild/Wavelink/blob/master/examples/playlist.py
 """
@@ -13,7 +14,7 @@ from typing import Union
 import discord
 import humanize
 import wavelink
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 
 RURL = re.compile(r"https?://(?:www\.)?.+")
@@ -120,33 +121,60 @@ class Music(commands.Cog):
         print("Ignoring exception in command {}:".format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+    @tasks.loop(minutes=5)
+    async def disconnect_idle(self):
+        """Disconnects idle instances Pingu in voice channels every 5 minutes"""
+        # TODO: Figure out how to do this
+        pass
+
     @commands.command(name="join", aliases=["connect"])
     async def join_channel(self, ctx, *, channel: discord.VoiceChannel=None):
-        """Connect to a valid voice channel."""
+        """Connect to a voice channel"""
         if not channel:
             try:
                 channel = ctx.author.voice.channel
             except AttributeError as exc:
-                raise discord.DiscordException(
-                    "No channel to join. Please either specify a valid channel or join one.") from exc
+                raise commands.BadArgument(
+                    "Not connected to a voice channel. Join one or specify it by name.") from exc
 
         player = self.bot.wavelink.get_player(ctx.guild.id)
-        await ctx.send(f"Connecting to **`{channel.name}`**")
+        if not await self.can_connect(channel, ctx=ctx):
+            return
+
+        await ctx.send(f"{self.bot.icons['audio']} Connected to **`{channel.name}`**")
         await player.connect(channel.id)
+
+        # return await ctx.send(
+        #     f"{self.bot.icons['fail']} Already connected to **`{channel.name}`**")
 
         controller = self.get_controller(ctx)
         controller.channel = ctx.channel
 
+    @commands.command(name="leave", aliases=["disconnect", "dc"])
+    async def leave_channel(self, ctx):
+        """Disconnect from the voice channel"""
+        # TODO: Fix bug where queue keeps playing while not in a voice channel
+        player = self.bot.wavelink.get_player(ctx.guild.id)
+
+        if player.is_playing and not player.paused:
+            await player.set_pause(True)
+            await player.disconnect()
+            return await ctx.send(":play_pause: Pausing the queue and disconnecting from channel")
+
+        if player:
+            await player.disconnect()
+            return await ctx.send(":eject: Disconnecting from channel")
+
     @commands.command()
     async def play(self, ctx, *, query: str):
-        """Search for and add a song to the Queue."""
+        """Search for a song and add it to the queue"""
         if not RURL.match(query):
             query = f"ytsearch:{query}"
 
         tracks = await self.bot.wavelink.get_tracks(f"{query}")
 
         if not tracks:
-            return await ctx.send("Could not find any songs with that query.")
+            return await ctx.send(f"{self.bot.icons['fail']} Unable to find requested query.")
 
         player = self.bot.wavelink.get_player(ctx.guild.id)
         if not player.is_connected:
@@ -156,72 +184,73 @@ class Music(commands.Cog):
 
         controller = self.get_controller(ctx)
         await controller.queue.put(track)
-        await ctx.send(f"Added {str(track)} to the queue.")
+        await ctx.send(f"{self.bot.icons['success']} Added {str(track)} to the queue")
 
     @commands.command()
     async def pause(self, ctx):
-        """Pause the player."""
+        """Pause the queue"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
         if not player.is_playing:
-            return await ctx.send("I am not currently playing anything!")
+            return await ctx.send(f"{self.bot.icons['fail']} Nothing is playing")
 
-        await ctx.send("Pausing the song!")
+        await ctx.send(":pause_button: Paused the queue")
         await player.set_pause(True)
 
     @commands.command()
     async def resume(self, ctx):
-        """Resume the player from a paused state."""
+        """Resume the queue"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
         if not player.paused:
-            return await ctx.send("I am not currently paused!")
+            return await ctx.send(f"{self.bot.icons['fail']} Nothing is playing")
 
-        await ctx.send("Resuming the player!")
+        await ctx.send(":arrow_forward: Resumed the queue")
         await player.set_pause(False)
 
     @commands.command()
     async def skip(self, ctx):
-        """Skip the currently playing song."""
+        """Skip the current song"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
 
         if not player.is_playing:
-            return await ctx.send("I am not currently playing anything!")
+            return await ctx.send(f"{self.bot.icons['fail']} Nothing to skip")
 
-        await ctx.send("Skipping the song!")
+        await ctx.send(":fast_forward: Skipped the current song")
         await player.stop()
 
-    @commands.command()
+    @commands.command(hidden=True, enabled=False)
     async def volume(self, ctx, *, vol: int):
-        """Set the player volume."""
+        """Set the player volume"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
         controller = self.get_controller(ctx)
 
-        vol = max(min(vol, 1000), 0)
+        vol = max(min(vol, 100), 0)
         controller.volume = vol
 
-        await ctx.send(f"Setting the player volume to `{vol}`")
+        await ctx.send(f":arrow_up_down: Setting the volume to `{vol}%`")
         await player.set_volume(vol)
 
-    @commands.command(aliases=["np", "current", "nowplaying"])
+    @commands.command(name="nowplaying", aliases=["np", "current"])
     async def now_playing(self, ctx):
-        """Retrieve the currently playing song."""
+        """Show the currently playing song"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
 
         if not player.current:
-            return await ctx.send("I am not currently playing anything!")
+            return await ctx.send(
+                f"{self.bot.icons['info']} Nothing is playing or the ")
 
         controller = self.get_controller(ctx)
         await controller.now_playing.delete()
 
-        controller.now_playing = await ctx.send(f"Now playing: `{player.current}`")
+        controller.now_playing = await ctx.send(f":musical_note: Now playing: `{player.current}`")
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
-        """Retrieve information on the next 5 songs from the queue."""
+        """Shows the next 5 songs in the queue"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
         controller = self.get_controller(ctx)
 
         if not player.current or not controller.queue._queue:
-            return await ctx.send("There are no songs currently in the queue.")
+            return await ctx.send(f"{self.bot.icons['info']} The queue is empty")
 
         upcoming = list(itertools.islice(controller.queue._queue, 0, 5))
 
@@ -230,19 +259,19 @@ class Music(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=["disconnect", "dc"])
-    async def stop(self, ctx):
-        """Stop and disconnect the player and controller."""
+    @commands.command(name="clear", aliases=["stop"])
+    async def clear_queue(self, ctx):
+        """Clear the queue and disconnect from the voice channel"""
         player = self.bot.wavelink.get_player(ctx.guild.id)
 
         try:
             del self.controllers[ctx.guild.id]
         except KeyError:
             await player.disconnect()
-            return await ctx.send("There was no controller to stop.")
+            return await ctx.send(":eject: Disconnecting from channel")
 
         await player.disconnect()
-        await ctx.send("Disconnected player and killed controller.")
+        await ctx.send(":eject: Clearing the queue and disconnecting from channel")
 
     @commands.command(name="debug")
     async def debug_info(self, ctx):
@@ -265,6 +294,24 @@ class Music(commands.Cog):
               f"Server CPU: `{cpu}`\n\n" \
               f"Server Uptime: `{datetime.timedelta(milliseconds=node.stats.uptime)}`"
         await ctx.send(fmt)
+
+    async def can_connect(self, voice: discord.VoiceChannel, ctx: commands.Context = None):
+        """Custom voice channel permission checker that was implemented because...
+        1. @commands.bot_has_guild_permissions(...) decorator only checks if the bot has
+            this permission in one of the roles it has in the SERVER, and the
+        2. @commands.bot_has_permissions(...) decorator checks the permissions in the
+            current TEXT channel, but not the actual voice channel.
+        """
+        self_permissions = voice.permissions_for(voice.guild.me)
+        if self_permissions.connect and self_permissions.speak:
+            return True
+        if ctx:
+            required_perms = {"connect": self_permissions.connect, "speak": self_permissions.speak}
+            missing_perms = "`, `".join(perm for perm, val in required_perms.items() if not val)
+            icon = self.bot.icons["fail"]
+            await ctx.send(
+                f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
+        return False
 
 
 def setup(bot):
