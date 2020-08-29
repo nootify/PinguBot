@@ -9,8 +9,6 @@ import humanize
 import psutil
 from discord.ext import commands
 
-import settings
-
 
 class Miscellaneous(commands.Cog):
     """Have a look at what's available"""
@@ -70,7 +68,7 @@ class Miscellaneous(commands.Cog):
 
         # Pingu
         bot_ref = self.bot.user
-        pingu_version = settings.VERSION # pylint: disable=no-member
+        pingu_version = self.bot.version
         bot_owner = self.bot.get_user(self.bot.owner_id)
 
         # System

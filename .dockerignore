@@ -1,10 +1,13 @@
 # Secrets
 .env
 # Unnecessary clutter
+database
+lavalink
+soundfx
+docker-compose.yml
 **/.git
 **/.gitignore
 **/.gitattributes
-**/lavalink
 **/venv
 **/.vscode
 # Temporary pingu files

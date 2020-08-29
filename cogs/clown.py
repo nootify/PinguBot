@@ -192,7 +192,7 @@ class Clown(commands.Cog):
         self.polls[ctx.message.guild.id] = None
 
     @nominate_clown.error
-    async def nominate_clown_error(self, ctx, error):
+    async def nominate_clown_error(self, ctx: commands.Context, error):
         """Error check for missing arguments"""
         error_icon = self.bot.icons["fail"]
         if isinstance(error, commands.MissingRequiredArgument):
@@ -209,8 +209,8 @@ class Clown(commands.Cog):
         if not channel:
             try:
                 channel = ctx.author.voice.channel
-            except AttributeError:
-                raise commands.BadArgument("Join a voice channel or specify it by name.")
+            except AttributeError as exc:
+                raise commands.BadArgument("Join a voice channel or specify it by name.") from exc
 
         # Check the clown is in the voice channel
         connected_users = set(member.id for member in channel.members)
@@ -228,12 +228,22 @@ class Clown(commands.Cog):
         await player.play(tracks[0])
 
     @honk.before_invoke
-    async def prepare_clown(self, ctx):
+    async def prepare_clown(self, ctx: commands.Context):
         """Ensures all the conditions are good before connecting to voice"""
         # If no record exists in the database
         if (ctx.guild.id not in self.server_clowns or
             not self.server_clowns[ctx.guild.id]["clown_id"]):
             raise commands.BadArgument("No clown was set.")
+
+    @honk.error
+    async def honk_error(self, ctx: commands.Context, error):
+        """Local error handler for the honk command"""
+        if isinstance(error, commands.BotMissingPermissions):
+            error_icon = self.bot.icons["fail"]
+            missing = "`, `".join(error.missing_perms)
+            await ctx.send(
+                f"{error_icon} I'm missing the `{missing}` permission(s) for the server.")
+            return
 
     async def can_connect(self, voice: discord.VoiceChannel, ctx: commands.Context=None) -> bool:
         """Custom voice channel permission checker that was implemented because...

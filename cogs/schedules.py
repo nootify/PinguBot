@@ -29,99 +29,12 @@ class Schedules(commands.Cog):
 
     @tasks.loop(minutes=5)
     async def schedule_updater(self):
-        """Retrieves schedule data from the current and previous semester."""
-
-        async def update_cache_file(filename: str, endpoint: str) -> None:
-            """Updates the requested cache file with the latest response from the endpoint.
-
-            :param str filename: Location of the cache file
-            :param str endpoint: URL to request the cache from
-            """
-            try:
-                timeout = aiohttp.ClientTimeout(total=30)
-                async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.get(endpoint) as response:
-                        if response.status == 200:
-                            data = await response.text()
-                            data = data[7:-1]  # Trim off "define( ... )" that surrounds the JSON
-                            async with aiofiles.open(filename, "w") as cache_file:
-                                await cache_file.write(data)
-                        else:
-                            self.log.error(
-                                "Could not retrieve data for '%s'; endpoint responded with HTTP %s",
-                                filename,
-                                response.status)
-            except Exception as exc: # pylint: disable=broad-except
-                self.log.error("Could not update cache file: %s: %s", type(exc).__name__, exc)
-            else:
-                self.log.info("Cache file '%s' updated with latest data", filename)
-
-        async def check_cache_file(filename: str, endpoint: str) -> None:
-            """Check the state of the cache file on disk, then perform actions as necessary.
-
-            :param str filename: Location of the cache file
-            :param str endpoint: URL to request the cache from
-            """
-            if os.path.exists(filename):
-                now = datetime.now()
-                cache_file_time = datetime.fromtimestamp(os.path.getmtime(filename))
-                last_updated = (now - cache_file_time).total_seconds()
-                # print(last_updated)
-                # Only send a request if the cached file is an hour old or older (3600+ seconds)
-                if last_updated >= 3600:
-                    self.log.debug("Cache file '%s' is stale; updating schedule data", filename)
-                    await update_cache_file(filename, endpoint)
-                else:
-                    self.log.debug("Cache file '%s' is too fresh; keeping current schedule data",
-                                   filename)
-            else:
-                self.log.info("Cache file '%s' was not found; downloading schedule data", filename)
-                await update_cache_file(filename, endpoint)
-
-        async def update_cache_memory(filename: str, memory_location: str) -> None:
-            """Load and parse a cache file into memory.
-
-            :param str filename: Location of the cache file
-            :param str memory_location: The key used to store the data in memory
-            """
-            async with aiofiles.open(filename, "r") as cache_file:
-                # json.loads requires bytes/string data
-                # json.load requires a file object
-                data = await cache_file.read()
-                if not self.schedule_data:
-                    self.schedule_data = {memory_location: json.loads(data)}
-                else:
-                    self.schedule_data[memory_location] = json.loads(data)
-                self.log.debug("Cache file '%s' loaded into '%s'", filename, memory_location)
-
-        async def update_cache(filename: str, endpoint: str, memory_location: str) -> None:
-            """Helper function that combines all of the previous subroutines.
-            Also updates the semester code table and moves the "latest" cache file
-            to its correct location.
-
-            :param str filename: Location of the cache file
-            :param str endpoint: URL to request the cache from
-            :param str memory_location: The key specifying where to store the JSON in memory
-            """
-            await check_cache_file(filename, endpoint)
-            await update_cache_memory(filename, memory_location)
-            if memory_location == "latest":
-                # Refresh the semester code lookup table
-                loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"]["SOAXREF"] # pylint: disable=line-too-long
-                self.current_semester = str(self.schedule_data[memory_location]["ct"])
-                self.semester_codes = {semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
-                                       for semester in loaded_semesters}
-                self.log.debug("Semester code table refreshed (current semester is '%s')",
-                               self.current_semester)
-
-                # Replace the "latest" key with the actual current semester code
-                self.schedule_data[self.current_semester] = self.schedule_data.pop(memory_location)
-
+        """Retrieves schedule data from the current and previous semester"""
         # Retrieve the schedule data for the current semester
         base_dirname, base_filename = "cache", "scheduledata.json"
         latest_semester_code = "latest"
         latest_semester_filename = f"{base_dirname}/{latest_semester_code}-{base_filename}"
-        await update_cache(latest_semester_filename, self.base_endpoint, latest_semester_code)
+        await self.update_cache(latest_semester_filename, self.base_endpoint, latest_semester_code)
 
         # Retrieve the schedule data for the previous semester
         loaded_semesters = self.schedule_data[self.current_semester]["ts"]["WSRESPONSE"]["SOAXREF"]
@@ -129,7 +42,93 @@ class Schedules(commands.Cog):
                                  if sem["EDIVALUE"] != self.current_semester)
         prev_semester_endpoint = f"{self.base_endpoint}{prev_semester_code}"
         prev_semester_filename = f"{base_dirname}/{prev_semester_code}-{base_filename}"
-        await update_cache(prev_semester_filename, prev_semester_endpoint, prev_semester_code)
+        await self.update_cache(prev_semester_filename, prev_semester_endpoint, prev_semester_code)
+
+    async def update_cache_file(self, filename: str, endpoint: str) -> None:
+        """Updates the requested cache file with the latest response from the endpoint.
+
+        :param str filename: Location of the cache file
+        :param str endpoint: URL to request the cache from
+        """
+        try:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(endpoint) as response:
+                    if response.status == 200:
+                        data = await response.text()
+                        data = data[7:-1]  # Trim off "define( ... )" that surrounds the JSON
+                        async with aiofiles.open(filename, "w") as cache_file:
+                            await cache_file.write(data)
+                    else:
+                        self.log.error(
+                            "Could not retrieve data for '%s'; endpoint responded with HTTP %s",
+                            filename,
+                            response.status)
+        except Exception as exc: # pylint: disable=broad-except
+            self.log.error("Could not update cache file: %s: %s", type(exc).__name__, exc)
+        else:
+            self.log.info("Cache file '%s' updated with latest data", filename)
+
+    async def check_cache_file(self, filename: str, endpoint: str) -> None:
+        """Check the state of the cache file on disk, then perform actions as necessary.
+
+        :param str filename: Location of the cache file
+        :param str endpoint: URL to request the cache from
+        """
+        if os.path.exists(filename):
+            now = datetime.now()
+            cache_file_time = datetime.fromtimestamp(os.path.getmtime(filename))
+            last_updated = (now - cache_file_time).total_seconds()
+            # print(last_updated)
+            # Only send a request if the cached file is an hour old or older (3600+ seconds)
+            if last_updated >= 3600:
+                self.log.debug("Cache file '%s' is stale; updating schedule data", filename)
+                await self.update_cache_file(filename, endpoint)
+            else:
+                self.log.debug("Cache file '%s' is too fresh; keeping current schedule data",
+                                filename)
+        else:
+            self.log.info("Cache file '%s' was not found; downloading schedule data", filename)
+            await self.update_cache_file(filename, endpoint)
+
+    async def update_cache_memory(self, filename: str, memory_location: str) -> None:
+        """Load and parse a cache file into memory.
+
+        :param str filename: Location of the cache file
+        :param str memory_location: The key used to store the data in memory
+        """
+        async with aiofiles.open(filename, "r") as cache_file:
+            # json.loads requires bytes/string data
+            # json.load requires a file object
+            data = await cache_file.read()
+            if not self.schedule_data:
+                self.schedule_data = {memory_location: json.loads(data)}
+            else:
+                self.schedule_data[memory_location] = json.loads(data)
+            self.log.debug("Cache file '%s' loaded into '%s'", filename, memory_location)
+
+    async def update_cache(self, filename: str, endpoint: str, memory_location: str) -> None:
+        """Helper function that combines all of the previous subroutines.
+        Also updates the semester code table and moves the "latest" cache file
+        to its correct location.
+
+        :param str filename: Location of the cache file
+        :param str endpoint: URL to request the cache from
+        :param str memory_location: The key specifying where to store the JSON in memory
+        """
+        await self.check_cache_file(filename, endpoint)
+        await self.update_cache_memory(filename, memory_location)
+        if memory_location == "latest":
+            # Refresh the semester code lookup table
+            loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"]["SOAXREF"] # pylint: disable=line-too-long
+            self.current_semester = str(self.schedule_data[memory_location]["ct"])
+            self.semester_codes = {semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
+                                    for semester in loaded_semesters}
+            self.log.debug("Semester code table refreshed (current semester is '%s')",
+                            self.current_semester)
+
+            # Replace the "latest" key with the actual current semester code
+            self.schedule_data[self.current_semester] = self.schedule_data.pop(memory_location)
 
     @schedule_updater.before_loop
     async def prepare_updater(self):
@@ -148,10 +147,10 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, course_number: str, *, semester: str = None):
+    async def get_course(self, ctx, course_number: str, *, semester: str=None): # pylint: disable=too-many-locals
         """Retrieves information about a course based on the semester"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
-        if not self.schedule_data or len(self.schedule_data) == 0:
+        if not self.schedule_data:
             raise commands.BadArgument("Schedule data not available. Try again later.")
 
         # Check the requested semester is valid
@@ -288,7 +287,7 @@ class Schedules(commands.Cog):
             output, max_lines = shrink_output(schedule_display, counter, max_lines, False)
 
     @get_course.error
-    async def get_course_error(self, ctx, error):
+    async def get_course_error(self, ctx: commands.Context, error):
         """Error checking the parameters of the get_course command."""
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f"{self.bot.icons['fail']} No course number was specified.")

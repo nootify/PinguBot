@@ -10,7 +10,6 @@ import traceback
 from datetime import datetime
 
 import asyncpg
-import discord
 from discord.ext import commands
 
 import settings
@@ -27,12 +26,10 @@ class Pingu(commands.Bot):
                         "desc": self.default["desc"],
                         "prefix": self.default["prefix"],
                         "status": self.default["status"]}
-        self.embed_colour = discord.Colour.from_rgb(138, 181, 252)
-        self.icons = {"audio": ":speaker:",
-                      "fail": ":x:",
-                      "info": ":information_source:",
-                      "success": ":white_check_mark:"}
+        self.embed_colour = settings.EMBED_COLOUR
+        self.icons = settings.ICONS
         self.lavalink = settings.LAVALINK
+        self.version = settings.VERSION
 
         self.log = logging.getLogger("pingu")
         self.log.info("Starting instance")
@@ -86,11 +83,6 @@ class Pingu(commands.Bot):
             await ctx.send(f"{error_icon} Stop! You violated the law. "
                            f"Wait {error.retry_after:.02f} seconds.")
             return
-        if isinstance(error, commands.BotMissingPermissions):
-            missing = "`, `".join(error.missing_perms)
-            await ctx.send(
-                f"{error_icon} I'm missing the `{missing}` permission(s) for the server.")
-            return
         if isinstance(error, commands.DisabledCommand):
             await ctx.send(f"{error_icon} This command has been disabled for now.")
             return
@@ -99,8 +91,8 @@ class Pingu(commands.Bot):
             return
         # A catch-all formatter for any CommandError related messages
         if isinstance(error, commands.CommandError):
-            self.log.info("%s: %s", type(error).__name__, error)
-            await ctx.send(f"{error_icon} {error} Check the logs for more details.")
+            self.log.error("%s: %s", type(error).__name__, error)
+            await ctx.send("Something went wrong while processing this command.")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
 

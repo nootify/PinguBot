@@ -12,7 +12,9 @@ class PinguHelp(commands.HelpCommand):
     Warning: This breaks if there are more than 25 cogs or subcommands.
     This is because the max number of fields in a single embed is 25.
     """
-    COLOUR = discord.Colour.from_rgb(138, 181, 252)
+    def __init__(self, colour, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.embed_colour = colour
 
     def get_description(self):
         """Returns a helpful tip for the user."""
@@ -26,7 +28,7 @@ class PinguHelp(commands.HelpCommand):
 
     # Display a list of available commands of each loaded cog
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title="Pingu Modules/Commands", colour=self.COLOUR)
+        embed = discord.Embed(title="Pingu Modules & Commands", colour=self.embed_colour)
         embed.description = self.get_description()
 
         # mapping is a dictionary of cogs paired with its associated commands
@@ -54,7 +56,7 @@ class PinguHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog):
-        embed = discord.Embed(title=f"{cog.qualified_name} Commands", colour=self.COLOUR)
+        embed = discord.Embed(title=f"{cog.qualified_name} Commands", colour=self.embed_colour)
         if cog.description:
             embed.description = cog.description
 
@@ -69,7 +71,7 @@ class PinguHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_group_help(self, group):
-        embed = discord.Embed(title=group.qualified_name, colour=self.COLOUR)
+        embed = discord.Embed(title=group.qualified_name, colour=self.embed_colour)
         if group.help:
             embed.description = group.help
 
@@ -87,8 +89,10 @@ class PinguHelp(commands.HelpCommand):
     async def send_command_help(self, command):
         embed = discord.Embed(title=self.get_command_signature(command),
                               description=command.short_doc or "...",
-                              colour=self.COLOUR)
-
+                              colour=self.embed_colour)
+        if command.aliases:
+            aliases = "`, `".join(alias for alias in command.aliases)
+            embed.add_field(name="Aliases:", value=f"`{aliases}`", inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
@@ -107,7 +111,7 @@ class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._original_help_command = bot.help_command
-        bot.help_command = PinguHelp()
+        bot.help_command = PinguHelp(self.bot.embed_colour)
         bot.help_command.cog = self
 
     def cog_unload(self):
