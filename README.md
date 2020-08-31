@@ -4,7 +4,7 @@ Runs on the Discord.py library. Check `requirements.txt` for all the goodies.
 ## Requirements
 Python 3.8+ and a copy of this repo is required.
 
-Python 3.7 does not support unicode CLDR emoji, a la `\N{grinning face with smiling eyes}`.
+Python 3.7 does not support certain unicode CLDR emoji, a la `\N{large green circle}`.
 
 Docker and docker-compose is highly recommended, but not required.
 
