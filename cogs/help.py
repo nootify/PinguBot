@@ -92,7 +92,7 @@ class PinguHelp(commands.HelpCommand):
                               colour=self.embed_colour)
         if command.aliases:
             aliases = "`, `".join(alias for alias in command.aliases)
-            embed.add_field(name="Aliases:", value=f"`{aliases}`", inline=False)
+            embed.add_field(name="Aliases", value=f"`{aliases}`", inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
