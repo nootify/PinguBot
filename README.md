@@ -15,7 +15,23 @@ docker-compose build
 ```
 
 ## Deployment
-Run this in docker-compose to deploy PinguBot: 
+Create a .env file in the root folder with the following variables:
+```bash
+PINGU_TOKEN=<your bot token>
+PGHOST=db
+PGUSER=postgres
+PGDATABASE=postgres
+PGPASSWORD=<your postgresql password>
+POSTGRES_USER=postgres
+POSTGRES_DB=postgres
+POSTGRES_PASSWORD=<your postgresql password>
+LAVALINKHOST=audio
+LAVALINKPORT=2333
+LAVALINKPASSWORD=<your password>
+LAVALINKREGION=<your region>
+```
+
+Then run this with docker-compose to deploy PinguBot: 
 ```bash
 docker-compose up -d
 ```
