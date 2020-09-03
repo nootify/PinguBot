@@ -155,7 +155,7 @@ class Miscellaneous(commands.Cog):
         for name, value, inline in stats_fields:
             stats_embed.add_field(name=name, value=value, inline=inline)
         await ctx.send(embed=stats_embed)
-    
+
     @commands.command()
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
@@ -167,6 +167,7 @@ class Miscellaneous(commands.Cog):
 
     @yoink.error
     async def yoink_error(self, ctx: commands.Context, error):
+        """Error handler for the yoink command"""
         ctx.local_error_only = True
         if isinstance(error, commands.BadArgument):
             error_icon = self.bot.icons["fail"]

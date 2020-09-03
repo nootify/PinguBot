@@ -82,6 +82,9 @@ class PinguHelp(commands.HelpCommand):
                             value=command.short_doc or "...",
                             inline=False)
 
+        usage_note = ("Commands that have `<arguments>` are required,\n"
+                      "but `[arguments]` are entirely optional")
+        embed.add_field(name="Note", value=usage_note, inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
@@ -93,15 +96,19 @@ class PinguHelp(commands.HelpCommand):
         if command.aliases:
             aliases = "`, `".join(alias for alias in command.aliases)
             embed.add_field(name="Aliases", value=f"`{aliases}`", inline=False)
+
+        usage_note = ("Commands that have `<arguments>` are required,\n"
+                      "but `[arguments]` are entirely optional")
+        embed.add_field(name="Note", value=usage_note, inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
 
     def command_not_found(self, string: str):
-        return f":x: `{string}` is not a valid command"
+        return f":x: `{string}` is not a valid command or module"
 
     def subcommand_not_found(self, command, string: str):
-        return f":x: `{string}` is not a valid option for the `{command}` command"
+        return f":x: `{string}` is not a valid subcommand for `{command}`"
 
 
 class Help(commands.Cog):

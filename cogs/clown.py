@@ -79,9 +79,12 @@ class Clown(commands.Cog):
         await self.bot.wait_until_ready()
 
     @commands.group(name="clown")
-    @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.guild)
+    @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
-        """Shows who the clown is in a server"""
+        """Type `help clown` for more info on this command
+
+        **clown**
+        Show who the clown is in the server"""
         if ctx.invoked_subcommand:
             return
 
@@ -205,7 +208,9 @@ class Clown(commands.Cog):
     @clown.command(name="honk", case_insensitive=True)
     # @commands.bot_has_guild_permissions(connect=True, speak=True) # This throws a CheckFailure
     async def honk(self, ctx: commands.Context, *, channel: discord.VoiceChannel=None):
-        """Honk at the clown they're in a voice channel"""
+        """Honk at the clown when they're in a voice channel
+
+        Leaving `channel` blank is only possible when the clown is in the same channel as you"""
         if not channel:
             try:
                 channel = ctx.author.voice.channel
@@ -264,11 +269,13 @@ class Clown(commands.Cog):
                               "view channel": self_permissions.view_channel}
             missing_perms = "`, `".join(perm for perm, val in required_perms.items() if not val)
             icon = self.bot.icons["fail"]
-            await ctx.send(f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
+            await ctx.send(
+                f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
         return False
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member,
+                                    before: discord.VoiceState, after: discord.VoiceState): 
         """Triggers when the clown joins a voice channel and was not previously in another voice
         channel in the server.
 
@@ -291,8 +298,11 @@ class Clown(commands.Cog):
                 self.log.debug("Clown does not match database records")
                 return
             # Skip if a week or more passed
-            if (datetime.now().date() - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7):
-                self.log.debug("New nomination is needed for the auto-honk feature to activate")
+            today = datetime.now().date()
+            if (today - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7):
+                self.log.debug(
+                    "New nomination in '%s' is needed for the auto-honk feature to activate",
+                    member.guild.id)
                 return
 
             player = self.bot.wavelink.get_player(member.guild.id)
