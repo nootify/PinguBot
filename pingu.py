@@ -86,10 +86,13 @@ class Pingu(commands.Bot):
         if isinstance(error, commands.DisabledCommand):
             await ctx.send(f"{error_icon} This command has been disabled for now.")
             return
+        # Catch errors that have been specified to be local only
+        if hasattr(ctx, "local_error_only"):
+            return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{error_icon} {error}")
             return
-        # A catch-all formatter for any CommandError related messages
+        # Catch-all formatter for any CommandError related messages
         if isinstance(error, commands.CommandError):
             self.log.error("%s: %s", type(error).__name__, error)
             await ctx.send("Something went wrong while processing this command.")

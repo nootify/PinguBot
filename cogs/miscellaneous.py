@@ -155,7 +155,24 @@ class Miscellaneous(commands.Cog):
         for name, value, inline in stats_fields:
             stats_embed.add_field(name=name, value=value, inline=inline)
         await ctx.send(embed=stats_embed)
+    
+    @commands.command()
+    @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
+    async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
+        """Yoink a Discord user's profile picture"""
+        if not user:
+            await ctx.send(ctx.message.author.avatar_url)
+            return
+        await ctx.send(user.avatar_url)
 
+    @yoink.error
+    async def yoink_error(self, ctx: commands.Context, error):
+        ctx.local_error_only = True
+        if isinstance(error, commands.BadArgument):
+            error_icon = self.bot.icons["fail"]
+            await ctx.send(f"{error_icon} User not found in the server")
+
+        # self.log.warning("Uncaught %s: %s", type(error).__name__, error)
 
 def setup(bot):
     """Adds this module in as a cog to Pingu."""
