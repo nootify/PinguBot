@@ -161,7 +161,9 @@ class Miscellaneous(commands.Cog):
     async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
         """Yoink a Discord user's profile picture
 
-        Omitting `[user]` will yoink your own picture"""
+        - `[user]` can be an @ or the user's name/nickname without an @.
+        - Omitting `[user]` will yoink your own picture.
+        """
         if not user:
             await ctx.send(ctx.message.author.avatar_url)
             return
@@ -173,9 +175,9 @@ class Miscellaneous(commands.Cog):
         ctx.local_error_only = True
         if isinstance(error, commands.BadArgument):
             error_icon = self.bot.icons["fail"]
-            await ctx.send(f"{error_icon} User not found in the server")
+            await ctx.send(f"{error_icon} User is not in the server.")
+            return
 
-        # self.log.warning("Uncaught %s: %s", type(error).__name__, error)
 
 def setup(bot):
     """Adds this module in as a cog to Pingu."""

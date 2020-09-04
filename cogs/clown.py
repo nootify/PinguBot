@@ -84,12 +84,11 @@ class Clown(commands.Cog):
         """Type `help clown` to see more info on this command
 
         **clown**
-        Show who the clown is in the server"""
+        Show who the clown is in the server
+        """
         if ctx.invoked_subcommand:
             return
 
-        if not self.server_clowns:
-            raise commands.BadArgument("Unable to retrieve data. Try again later.")
         if (ctx.guild.id not in self.server_clowns or
             not self.server_clowns[ctx.guild.id]["clown_id"]):
             info_icon = self.bot.icons["info"]
@@ -112,97 +111,131 @@ class Clown(commands.Cog):
                     f"{info_icon} The clown is `{server_clown}` (`{server_clown.nick}`).")
 
     @clown.command(name="nominate", aliases=["nom"])
-    async def nominate_clown(self, ctx: commands.Context, mention: str, *, reason: str):
-        """Nominate someone to be clown of the week"""
+    async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member): # pylint: disable=too-many-return-statements
+        """Nominate someone to be clown of the week
+
+        The following combinations are valid when providing a reason:
+        - Only typing in the reason
+        - Only attaching the picture
+        - Doing both (but make sure it's uploaded together)
+
+        Some other notes:
+        - You need the actual image file, not a link
+        - Only the first image is used
+        """
         # Parse arguments
-        if ctx.message.guild.id in self.polls and self.polls[ctx.message.guild.id]:
-            raise commands.BadArgument("A nomination is currently in progress.")
-        if len(reason) > 1900:
-            raise commands.BadArgument("1900 characters or less, por favor.")
+        error_icon = self.bot.icons["fail"]
+        if ctx.guild.id in self.polls and self.polls[ctx.guild.id]:
+            await ctx.send(f"{error_icon} A nomination is currently in progress.")
+            return
+        if user.bot:
+            await ctx.send(f"{error_icon} Potential feedback loop detected. Canceling.")
+            return
+        # Prevent the clown from nominating until a week passed
+        if (ctx.guild.id in self.server_clowns and
+                (date.today() - self.server_clowns[ctx.guild.id]["clowned_on"] <= timedelta(days=7)) and
+                ctx.message.author.id == self.server_clowns[ctx.guild.id]["clowned_id"]):
+            self.polls[ctx.guild.id] = False
+            await ctx.send(f"{error_icon} You cannot nominate someone at this time.")
+            return
+
+        # Set poll semaphore
+        self.polls[ctx.guild.id] = True
+
+        # Confirm the message received is indeed the user that sent it
+        nominator = ctx.message.author
+        nomination_time = 60 # seconds
+        await ctx.send(
+            f"{nominator.mention}, you have {nomination_time} seconds to give a reason for the nomination.")
+        def confirm_message(msg):
+            return msg.author.id == nominator.id and msg.channel.id == ctx.message.channel.id
         try:
-            mention = await commands.MemberConverter().convert(ctx, mention)
-        except commands.BadArgument as exc:
-            raise commands.BadArgument(
-                "This user is not in the server or you didn't @ them.") from exc
-        else:
-            if mention.bot:
-                raise commands.BadArgument("This command is unavailable for bots.")
+            nomination_reason = await self.bot.wait_for("message",
+                                                        timeout=nomination_time,
+                                                        check=confirm_message)
+        except asyncio.TimeoutError:
+            self.polls[ctx.guild.id] = False
+            await ctx.send(f"{error_icon} No reason was provided. Canceling nomination.")
+            return
 
-        # Pull latest data from database
-        self.query = f"SELECT clown_id, clowned_on FROM clowns WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
-        self.fetch_row.start() # pylint: disable=no-member
-        while self.fetch_row.is_running(): # pylint: disable=no-member
-            await asyncio.sleep(1)
+        def create_poll(reason: discord.Message, delay: int) -> discord.Embed:
+            """A template to create the nomination poll"""
+            poll_embed = discord.Embed(title="Clown of the Week",
+                                    colour=self.bot.embed_colour,
+                                    timestamp=(datetime.utcnow() + timedelta(seconds=delay)))
+            poll_embed.set_author(name=f"Nominated by: {ctx.message.author}",
+                                  icon_url=ctx.author.avatar_url)
+            poll_embed.set_footer(text="Voting will end")
 
-        # Prevent the clown from un-clowning themselves until a week passed
-        if (self.result and
-                (date.today() - self.result["clowned_on"] <= timedelta(days=7)) and
-                self.result["clown_id"] == ctx.message.author.id):
-            raise commands.BadArgument("Clowns are not allowed to do that.")
+            # Cut off text that exceeds 1800 characters
+            if len(reason.content) <= 1800:
+                poll_embed.description = f"{user} was nominated because:\n\n{reason.content}"
+            else:
+                poll_embed.description = f"{user} was nominated because:\n\n{reason.content[:1797]}..."
+            # Invalid images/URLs will just set an empty image
+            if reason.attachments:
+                poll_embed.set_image(url=reason.attachments[0].url)
+            return poll_embed
 
-        # Create the clown of the week nomination message
-        poll_delay = 120 # This is in seconds
-        poll_embed = discord.Embed(title="Clown of the Week",
-                                   description=f"{mention} was nominated because:\n\n{reason}",
-                                   colour=self.bot.embed_colour,
-                                   timestamp=(datetime.utcnow() + timedelta(seconds=poll_delay)))
-        poll_embed.set_author(name=f"Nominated by: {ctx.message.author}",
-                              icon_url=ctx.author.avatar_url)
-        poll_embed.set_footer(text="Voting will end")
-
-        # Set a poll semaphore for the server and then send the nomination message
-        self.polls[ctx.message.guild.id] = await ctx.send(embed=poll_embed)
-        await self.polls[ctx.message.guild.id].add_reaction("\N{white heavy check mark}")
-        await self.polls[ctx.message.guild.id].add_reaction("\N{cross mark}")
-
+        # Store the nomination message in the semaphore
+        poll_delay = 120 # seconds
+        self.polls[ctx.guild.id] = await ctx.send(
+            embed=create_poll(nomination_reason, poll_delay))
+        await self.polls[ctx.guild.id].add_reaction("\N{white heavy check mark}")
+        await self.polls[ctx.guild.id].add_reaction("\N{cross mark}")
         await asyncio.sleep(poll_delay)
         # def vote_check(reaction, user):
         #     return user == ctx.message.author and str(reaction.emoji) in ["✅", "❌"]
 
         # Refresh message for reaction changes
-        self.polls[ctx.message.guild.id] = await ctx.message.channel.fetch_message(
-            self.polls[ctx.message.guild.id].id)
+        self.polls[ctx.guild.id] = await ctx.message.channel.fetch_message(
+            self.polls[ctx.guild.id].id)
         # Check the results of the poll
         results = {reaction.emoji: reaction.count
-                   for reaction in self.polls[ctx.message.guild.id].reactions}
+                   for reaction in self.polls[ctx.guild.id].reactions}
         if "❌" not in results or "✅" not in results:
-            # Undo semaphore
-            self.polls[ctx.message.guild.id] = None
-            raise commands.BadArgument("Someone with moderator powers removed all the votes :eyes:")
+            self.polls[ctx.guild.id] = False
+            await ctx.send(
+                f"{error_icon} Someone removed all of the votes for the nomination :eyes:")
+            return
         if results["❌"] >= results["✅"]:
-            # Undo semaphore
-            self.polls[ctx.message.guild.id] = None
-            raise commands.BadArgument("Nomination failed to gain enough votes.")
+            self.polls[ctx.guild.id] = False
+            await ctx.send(f"{error_icon} Nomination failed to gain enough votes.")
+            return
 
         # Change the clown because enough votes were in favor of the nomination
         if self.result:
-            self.query = f"UPDATE clowns SET clown_id = {mention.id}, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+            self.query = f"UPDATE clowns SET clown_id = {user.id}, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
         else:
-            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.message.guild.id}', '{mention.id}', NOW());" # pylint: disable=line-too-long
+            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.message.guild.id}', '{user.id}', NOW());" # pylint: disable=line-too-long
         self.fetch_row.start() # pylint: disable=no-member
         while self.fetch_row.is_running(): # pylint: disable=no-member
             await asyncio.sleep(1)
         self.update_cache.start() # pylint: disable=no-member
 
         # Display who the new clown is
-        if not mention.nick:
-            await ctx.send(f"{self.bot.icons['info']} The clown is now `{mention}`.")
+        if not user.nick:
+            await ctx.send(f"{self.bot.icons['info']} The clown is now `{user}`.")
         else:
             await ctx.send(
-                f"{self.bot.icons['info']} The clown is now `{mention}` (`{mention.nick}`).")
+                f"{self.bot.icons['info']} The clown is now `{user}` (`{user.nick}`).")
 
         # Undo semaphore
-        self.polls[ctx.message.guild.id] = None
+        self.polls[ctx.guild.id] = False
 
     @nominate_clown.error
     async def nominate_clown_error(self, ctx: commands.Context, error):
         """Error check for missing arguments"""
+        ctx.local_error_only = True
         error_icon = self.bot.icons["fail"]
         if isinstance(error, commands.MissingRequiredArgument):
-            if error.param.name == "mention":
+            if error.param.name == "user":
                 await ctx.send(f"{error_icon} No candidate was specified.")
             elif error.param.name == "reason":
                 await ctx.send(f"{error_icon} No reason was provided for the nomination.")
+            return
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(f"{error_icon} User is not in the server.")
             return
 
     @clown.command(name="honk", case_insensitive=True)
@@ -210,7 +243,9 @@ class Clown(commands.Cog):
     async def honk(self, ctx: commands.Context, *, channel: discord.VoiceChannel=None):
         """Honk at the clown when they're in a voice channel
 
-        Leaving `channel` blank is only possible when the clown is in the same channel as you"""
+        Omitting `[channel]` means the clown has to be in the same
+        voice channel as you
+        """
         if not channel:
             try:
                 channel = ctx.author.voice.channel
@@ -275,7 +310,7 @@ class Clown(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member,
-                                    before: discord.VoiceState, after: discord.VoiceState): 
+                                    before: discord.VoiceState, after: discord.VoiceState):
         """Triggers when the clown joins a voice channel and was not previously in another voice
         channel in the server.
 

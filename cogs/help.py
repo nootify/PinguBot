@@ -82,9 +82,9 @@ class PinguHelp(commands.HelpCommand):
                             value=command.short_doc or "...",
                             inline=False)
 
-        usage_note = ("Commands that have `<arguments>` are required,\n"
-                      "but `[arguments]` are entirely optional")
-        embed.add_field(name="Note", value=usage_note, inline=False)
+        usage_note = ("Commands that have **<arguments>** are required,\n"
+                      "but **[arguments]** are optional")
+        embed.add_field(name="⠀", value=usage_note, inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
@@ -97,9 +97,9 @@ class PinguHelp(commands.HelpCommand):
             aliases = "`, `".join(alias for alias in command.aliases)
             embed.add_field(name="Aliases", value=f"`{aliases}`", inline=False)
 
-        usage_note = ("Commands that have `<arguments>` are required,\n"
-                      "but `[arguments]` are entirely optional")
-        embed.add_field(name="Note", value=usage_note, inline=False)
+        usage_note = ("Commands that have **<arguments>** are required,\n"
+                      "but **[arguments]** are optional")
+        embed.add_field(name="⠀", value=usage_note, inline=False)
         embed.set_footer(text=f"Requested by: {self.context.author}",
                          icon_url=self.context.author.avatar_url)
         await self.get_destination().send(embed=embed)
