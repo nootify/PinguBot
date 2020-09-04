@@ -159,7 +159,9 @@ class Miscellaneous(commands.Cog):
     @commands.command()
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
-        """Yoink a Discord user's profile picture"""
+        """Yoink a Discord user's profile picture
+
+        Omitting `[user]` will yoink your own picture"""
         if not user:
             await ctx.send(ctx.message.author.avatar_url)
             return

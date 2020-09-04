@@ -91,7 +91,7 @@ class PinguHelp(commands.HelpCommand):
 
     async def send_command_help(self, command):
         embed = discord.Embed(title=self.get_command_signature(command),
-                              description=command.short_doc or "...",
+                              description=command.help or "...",
                               colour=self.embed_colour)
         if command.aliases:
             aliases = "`, `".join(alias for alias in command.aliases)

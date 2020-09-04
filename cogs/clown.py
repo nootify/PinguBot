@@ -81,7 +81,7 @@ class Clown(commands.Cog):
     @commands.group(name="clown")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown(self, ctx):
-        """Type `help clown` for more info on this command
+        """Type `help clown` to see more info on this command
 
         **clown**
         Show who the clown is in the server"""
