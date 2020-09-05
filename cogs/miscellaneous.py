@@ -55,7 +55,7 @@ class Miscellaneous(commands.Cog):
     @commands.command(name="stats", aliases=["about"])
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def pingu_stats(self, ctx): # pylint: disable=too-many-locals
-        """Shows more information about Pingu"""
+        """Show more info about Pingu"""
         # Embed header and footer
         py_version = platform.python_version()
         dpy_version = discord.__version__
@@ -161,8 +161,8 @@ class Miscellaneous(commands.Cog):
     async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
         """Yoink a Discord user's profile picture
 
-        - `[user]` can be an @ or the user's name/nickname without an @.
-        - Omitting `[user]` will yoink your own picture.
+        - **[user]** can be an @ or the user's name/nickname without an @.
+        - Omitting **[user]** will yoink your own picture.
         """
         if not user:
             await ctx.send(ctx.message.author.avatar_url)

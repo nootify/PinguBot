@@ -148,7 +148,7 @@ class Schedules(commands.Cog):
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def get_course(self, ctx, course_number: str, *, semester: str=None): # pylint: disable=too-many-locals
-        """Retrieves information about a course based on the semester"""
+        """Retrieves info about a course based on the semester"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not self.schedule_data:
             raise commands.BadArgument("Schedule data not available. Try again later.")

@@ -114,13 +114,13 @@ class Clown(commands.Cog):
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member): # pylint: disable=too-many-return-statements
         """Nominate someone to be clown of the week
 
-        The following combinations are valid when providing a reason:
-        - Only typing in the reason
-        - Only attaching the picture
+        The following are valid when providing a reason:
+        - Typing in the reason
+        - Attaching a picture
         - Doing both (but make sure it's uploaded together)
 
         Some other notes:
-        - You need the actual image file, not a link
+        - You need to upload the actual image file, not a link
         - Only the first image is used
         """
         # Parse arguments
@@ -243,7 +243,7 @@ class Clown(commands.Cog):
     async def honk(self, ctx: commands.Context, *, channel: discord.VoiceChannel=None):
         """Honk at the clown when they're in a voice channel
 
-        Omitting `[channel]` means the clown has to be in the same
+        Omitting **[channel]** means the clown has to be in the same
         voice channel as you
         """
         if not channel:
