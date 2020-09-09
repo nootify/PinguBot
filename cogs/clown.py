@@ -23,7 +23,7 @@ class Clown(commands.Cog):
         self.log = logging.getLogger(__name__)
 
         # Does not overwrite the client on cog reload
-        if not hasattr(bot, 'wavelink'):
+        if not hasattr(bot, "wavelink"):
             self.bot.wavelink = wavelink.Client(bot=self.bot)
 
         self.bot.loop.create_task(self.start_nodes())
@@ -134,7 +134,7 @@ class Clown(commands.Cog):
         # Prevent the clown from nominating until a week passed
         if (ctx.guild.id in self.server_clowns and
                 (date.today() - self.server_clowns[ctx.guild.id]["clowned_on"] <= timedelta(days=7)) and
-                ctx.message.author.id == self.server_clowns[ctx.guild.id]["clowned_id"]):
+                ctx.message.author.id == self.server_clowns[ctx.guild.id]["clown_id"]):
             self.polls[ctx.guild.id] = False
             await ctx.send(f"{error_icon} You cannot nominate someone at this time.")
             return

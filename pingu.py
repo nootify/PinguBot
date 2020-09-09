@@ -7,6 +7,7 @@ import asyncio
 import logging
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import asyncpg
@@ -128,5 +129,6 @@ if __name__ == "__main__":
     # This enables discord.py to handle the bot, while the DB connection is left to the dev
     pingu = Pingu()
     db_loop = asyncio.get_event_loop()
+    db_loop.set_default_executor(ThreadPoolExecutor(1))
     db_loop.run_until_complete(attach_db(pingu))
     pingu.run(settings.TOKEN)
