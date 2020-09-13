@@ -145,7 +145,7 @@ class Clown(commands.Cog):
         # Confirm the message received is indeed the user that sent it
         nominator = ctx.message.author
         nomination_time = 60 # seconds
-        await ctx.send(
+        nomination_prompt = await ctx.send(
             f"{nominator.mention}, you have {nomination_time} seconds to give a reason for the nomination.")
         def confirm_message(msg):
             return msg.author.id == nominator.id and msg.channel.id == ctx.message.channel.id
@@ -153,16 +153,18 @@ class Clown(commands.Cog):
             nomination_reason = await self.bot.wait_for("message",
                                                         timeout=nomination_time,
                                                         check=confirm_message)
+            await nomination_prompt.delete()
         except asyncio.TimeoutError:
             self.polls[ctx.guild.id] = False
+            await nomination_prompt.delete()
             await ctx.send(f"{error_icon} No reason was provided. Canceling nomination.")
             return
 
         def create_poll(reason: discord.Message, delay: int) -> discord.Embed:
             """A template to create the nomination poll"""
             poll_embed = discord.Embed(title="Clown of the Week",
-                                    colour=self.bot.embed_colour,
-                                    timestamp=(datetime.utcnow() + timedelta(seconds=delay)))
+                                       colour=self.bot.embed_colour,
+                                       timestamp=(datetime.utcnow() + timedelta(seconds=delay)))
             poll_embed.set_author(name=f"Nominated by: {ctx.message.author}",
                                   icon_url=ctx.author.avatar_url)
             poll_embed.set_footer(text="Voting will end")
@@ -188,8 +190,14 @@ class Clown(commands.Cog):
         #     return user == ctx.message.author and str(reaction.emoji) in ["✅", "❌"]
 
         # Refresh message for reaction changes
-        self.polls[ctx.guild.id] = await ctx.message.channel.fetch_message(
-            self.polls[ctx.guild.id].id)
+        try:
+            self.polls[ctx.guild.id] = await ctx.message.channel.fetch_message(
+                self.polls[ctx.guild.id].id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            self.polls[ctx.guild.id] = False
+            await ctx.send(f"{error_icon} Unable to retrieve poll data. Canceling nomination.")
+            return
+
         # Check the results of the poll
         results = {reaction.emoji: reaction.count
                    for reaction in self.polls[ctx.guild.id].reactions}
@@ -204,10 +212,10 @@ class Clown(commands.Cog):
             return
 
         # Change the clown because enough votes were in favor of the nomination
-        if self.result:
-            self.query = f"UPDATE clowns SET clown_id = {user.id}, clowned_on = NOW() WHERE guild_id = {ctx.message.guild.id};" # pylint: disable=line-too-long
+        if self.server_clowns and ctx.guild.id in self.server_clowns:
+            self.query = f"UPDATE clowns SET clown_id = {user.id}, clowned_on = NOW() WHERE guild_id = {ctx.guild.id};" # pylint: disable=line-too-long
         else:
-            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.message.guild.id}', '{user.id}', NOW());" # pylint: disable=line-too-long
+            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.guild.id}', '{user.id}', NOW());" # pylint: disable=line-too-long
         self.fetch_row.start() # pylint: disable=no-member
         while self.fetch_row.is_running(): # pylint: disable=no-member
             await asyncio.sleep(1)
