@@ -156,7 +156,7 @@ class Miscellaneous(commands.Cog):
             stats_embed.add_field(name=name, value=value, inline=inline)
         await ctx.send(embed=stats_embed)
 
-    @commands.command()
+    @commands.command(name="yoink", aliases=["avatar", "pfp"])
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member=None):
         """Yoink a Discord user's profile picture
