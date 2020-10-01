@@ -20,8 +20,6 @@ ICONS = {"audio": ":speaker:",
          "fail": ":x:",
          "info": ":information_source:",
          "success": ":white_check_mark:"}
-INTENTS = discord.Intents.default()
-INTENTS.members = True
 LAVALINK = {"HOST": os.environ.get("LAVALINKHOST"),
             "PORT": os.environ.get("LAVALINKPORT"),
             "PASSWORD": os.environ.get("LAVALINKPASSWORD"),

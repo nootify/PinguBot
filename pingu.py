@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import asyncpg
+import discord
 from discord.ext import commands
 
 import settings
@@ -29,18 +30,19 @@ class Pingu(commands.Bot):
                         "status": self.default["status"]}
         self.embed_colour = settings.EMBED_COLOUR
         self.icons = settings.ICONS
-        self.intents = settings.INTENTS
         self.lavalink = settings.LAVALINK
         self.version = settings.VERSION
 
         self.log = logging.getLogger("pingu")
         self.log.info("Starting instance")
 
+        intents = discord.Intents.default()
+        intents.members = True
         super().__init__(command_prefix=self.current["prefix"],
                          description=self.current["desc"],
                          activity=self.current["activity"],
                          status=self.current["status"],
-                         intents=self.intents)
+                         intents=intents)
 
         # Important debugging tools
         self.log.info("Loading jishaku")
