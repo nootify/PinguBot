@@ -29,6 +29,7 @@ class Pingu(commands.Bot):
                         "status": self.default["status"]}
         self.embed_colour = settings.EMBED_COLOUR
         self.icons = settings.ICONS
+        self.intents = settings.INTENTS
         self.lavalink = settings.LAVALINK
         self.version = settings.VERSION
 
@@ -38,7 +39,8 @@ class Pingu(commands.Bot):
         super().__init__(command_prefix=self.current["prefix"],
                          description=self.current["desc"],
                          activity=self.current["activity"],
-                         status=self.current["status"])
+                         status=self.current["status"],
+                         intents=self.intents)
 
         # Important debugging tools
         self.log.info("Loading jishaku")
