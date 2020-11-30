@@ -15,6 +15,7 @@ class Clown(commands.Cog):
     """Stuff related to clown of the week"""
     def __init__(self, bot):
         self.bot = bot
+        self.last_joined = datetime.now()
         self.polls = {}
         self.query = None
         self.result = None
@@ -61,7 +62,8 @@ class Clown(commands.Cog):
             results = await conn.fetch("SELECT * FROM clowns;")
             self.server_clowns = {result["guild_id"]: {
                 "clown_id": result["clown_id"],
-                "clowned_on": result["clowned_on"]
+                "clowned_on": result["clowned_on"],
+                "last_joined": datetime.now() - timedelta(minutes=15),
             } for result in results}
         self.log.info("Refreshed memory cache of server clowns")
 
@@ -342,12 +344,21 @@ class Clown(commands.Cog):
                 return
             # Skip if a week or more passed
             today = datetime.now().date()
-            if (today - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7):
+            more_than_a_week = (today - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7)
+            if more_than_a_week:
                 self.log.debug(
                     "New nomination in '%s' is needed for the auto-honk feature to activate",
                     member.guild.id)
                 return
+            # Skip if they are abusing the bot
+            spam = (datetime.now() - self.server_clowns[member.guild.id]["last_joined"]) <= timedelta(minutes=15)
+            if spam:
+                self.log.debug(
+                    "Potential spam connect/disconnect by '%s'",
+                    member.guild.id)
+                return
 
+            self.server_clowns[member.guild.id]["last_joined"] = datetime.now()
             player = self.bot.wavelink.get_player(member.guild.id)
             if await self.can_connect(after.channel) and not player.is_connected:
                 tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
