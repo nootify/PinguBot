@@ -23,6 +23,7 @@ class Clown(commands.Cog):
         self.update_cache.start() # pylint: disable=no-member
         self.log = logging.getLogger(__name__)
 
+        self.node_name = "CLOWN"
         # Does not overwrite the client on cog reload
         if not hasattr(bot, "wavelink"):
             self.bot.wavelink = wavelink.Client(bot=self.bot)
@@ -33,15 +34,14 @@ class Clown(commands.Cog):
         """Establish connections to the Lavalink server"""
         await self.bot.wait_until_ready()
 
-        node_name = "CLOWN"
-        node = self.bot.wavelink.get_node(node_name)
+        node = self.bot.wavelink.get_node(self.node_name)
         if not node:
             node = await self.bot.wavelink.initiate_node(
                 host=self.bot.lavalink["HOST"],
                 port=int(self.bot.lavalink["PORT"]),
                 rest_uri=f"http://{self.bot.lavalink['HOST']}:{self.bot.lavalink['PORT']}",
                 password=self.bot.lavalink["PASSWORD"],
-                identifier=node_name,
+                identifier=self.node_name,
                 region=self.bot.lavalink["REGION"])
 
         # Disconnect Pingu when the audio finishes playing or an error occurs
@@ -50,7 +50,7 @@ class Clown(commands.Cog):
     async def on_event_hook(self, event):
         """Catch events from a node"""
         if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
-            await event.player.disconnect()
+            await event.player.destroy()
 
     def cog_unload(self):
         self.log.info("Cog unloaded; disconnecting from voice channels")
@@ -267,7 +267,7 @@ class Clown(commands.Cog):
         if self.server_clowns[ctx.guild.id]["clown_id"] not in connected_users:
             raise commands.BadArgument("Clown is not in the voice channel.")
 
-        player = self.bot.wavelink.get_player(ctx.guild.id)
+        player = self.bot.wavelink.get_player(ctx.guild.id, node_id=self.node_name)
         if player.is_connected:
             raise commands.BadArgument("Something is already playing in a voice channel.")
         if not await self.can_connect(channel, ctx=ctx):
@@ -359,7 +359,7 @@ class Clown(commands.Cog):
                 return
 
             self.server_clowns[member.guild.id]["last_joined"] = datetime.now()
-            player = self.bot.wavelink.get_player(member.guild.id)
+            player = self.bot.wavelink.get_player(member.guild.id, node_id=self.node_name)
             if await self.can_connect(after.channel) and not player.is_connected:
                 tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
                 await player.connect(after.channel.id)

@@ -2,7 +2,7 @@
 aiofiles
 asyncpg
 coverage
-discord.py[voice]
+discord.py[voice]==1.6
 jishaku
 prettytable
 psutil
