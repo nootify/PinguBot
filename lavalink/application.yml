@@ -15,8 +15,8 @@ lavalink:
       local: true
     bufferDurationMs: 400
     youtubePlaylistLoadLimit: 3 # Number of pages at 100 each
-    youtubeSearchEnabled: true
-    soundcloudSearchEnabled: true
+    youtubeSearchEnabled: false
+    soundcloudSearchEnabled: false
     gc-warnings: true
     #ratelimit:
       #ipBlocks: ["1.0.0.0/8", "..."] # list of ip blocks

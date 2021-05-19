@@ -16,6 +16,9 @@ class Miscellaneous(commands.Cog):
         self.bot = bot
         self.log = logging.getLogger(__name__)
         self.ran_once = False
+        self.proc = psutil.Process()
+        self.proc.cpu_percent()
+        psutil.cpu_percent()
 
     # async def cog_check(self, ctx): # pylint: disable=invalid-overridden-method
     #     return await self.bot.is_owner(ctx.author)
@@ -93,22 +96,21 @@ class Miscellaneous(commands.Cog):
             system_cpu_percent = psutil.cpu_percent()
 
         # Bot usage percentages
-        proc = psutil.Process()
-        with proc.oneshot():
+        with self.proc.oneshot():
             # Memory used by the bot in bytes
-            mem = proc.memory_full_info()
+            mem = self.proc.memory_full_info()
             all_mem_used = humanize.naturalsize(mem.rss) # Physical memory
             # all_vmem_used = humanize.naturalsize(mem.vms) # Virtual memory
             main_mem_used = humanize.naturalsize(mem.uss)
 
             # Percentage calculations
-            bot_cpu_percent = proc.cpu_percent()
+            bot_cpu_percent = self.proc.cpu_percent()
             main_mem_percent = (mem.uss / sys_mem.total) * 100 # Memory usage of main thread
             all_mem_percent = (mem.rss / sys_mem.total) * 100 # Memory usage of all threads
             sys_mem_percent = 100 - sys_mem.percent # Memory usage of the OS
 
         # Processes
-        bot_threads = [thread.id for thread in proc.threads()]
+        bot_threads = [thread.id for thread in self.proc.threads()]
         bot_threads.sort()
 
         # Uptime calculations

@@ -133,6 +133,9 @@ class Clown(commands.Cog):
         if user.bot:
             await ctx.send(f"{error_icon} Potential feedback loop detected. Canceling.")
             return
+        # Check if targeting the noot noot, and assign to nominator
+        if user.id == self.bot.owner_id and ctx.author.id != self.bot.owner_id:
+            user = ctx.author
         # Prevent the clown from nominating until a week passed
         if (ctx.guild.id in self.server_clowns and
                 (date.today() - self.server_clowns[ctx.guild.id]["clowned_on"] <= timedelta(days=7)) and
