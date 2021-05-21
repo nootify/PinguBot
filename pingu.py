@@ -75,9 +75,8 @@ class Pingu(commands.Bot):
 
     async def on_message(self, message):
         """Actions that are performed for any message that the bot can see."""
-        # Ignore messages from itself, other bots, or from DMs
-        # Note: this can't catch users that are selfbotting
-        if message.author.bot or not message.guild:
+        # Ignore messages from DMs
+        if not message.guild:
             return
 
         # This makes sure the owner_id gets set and the query is only run once

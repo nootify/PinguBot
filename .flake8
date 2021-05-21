@@ -1,2 +1,4 @@
 [flake8]
-ignore = E501
+max-line-length=120
+exclude=venv,.git
+ignore = W503

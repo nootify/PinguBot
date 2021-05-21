@@ -14,23 +14,24 @@ from prettytable import PrettyTable, PLAIN_COLUMNS
 class Schedules(commands.Cog):
     """Information about courses at NJIT"""
 
+    SCHEDULE_URL = (
+        "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="
+    )
+
     def __init__(self, bot):
         self.bot = bot
-        self.base_endpoint = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="  # pylint: disable=line-too-long
         self.current_semester = None
         self.schedule_data = None
         self.semester_codes = None
-        self.schedule_updater.add_exception_type(
-            FileNotFoundError
-        )  # pylint: disable=no-member
-        self.schedule_updater.start()  # pylint: disable=no-member
+        self.schedule_updater.add_exception_type(FileNotFoundError)
+        self.schedule_updater.start()
         self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
-        self.schedule_updater.cancel()  # pylint: disable=no-member
+        self.schedule_updater.cancel()
         self.log.info("Cog unloaded; schedule updater no longer running")
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=30)
     async def schedule_updater(self):
         """Retrieves schedule data from the current and previous semester"""
         # Retrieve the schedule data for the current semester
@@ -65,14 +66,13 @@ class Schedules(commands.Cog):
         :param str endpoint: URL to request the cache from
         """
         try:
-            timeout = aiohttp.ClientTimeout(total=30)
+            timeout = aiohttp.ClientTimeout(total=20)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(endpoint) as response:
                     if response.status == 200:
-                        data = await response.text()
-                        data = data[
-                            7:-1
-                        ]  # Trim off "define( ... )" that surrounds the JSON
+                        raw_data = await response.text()
+                        # Trim off JSONP
+                        data = raw_data[7:-1]
                         async with aiofiles.open(filename, "w") as cache_file:
                             await cache_file.write(data)
                     else:
@@ -81,7 +81,7 @@ class Schedules(commands.Cog):
                             filename,
                             response.status,
                         )
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             self.log.error(
                 "Could not update cache file: %s: %s", type(exc).__name__, exc
             )
@@ -151,10 +151,10 @@ class Schedules(commands.Cog):
             # Refresh the semester code lookup table
             loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"][
                 "SOAXREF"
-            ]  # pylint: disable=line-too-long
+            ]
             self.current_semester = str(self.schedule_data[memory_location]["ct"])
             self.semester_codes = {
-                semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
+                semester["EDIVALUE"]: semester["DESCRIPTION"]
                 for semester in loaded_semesters
             }
             self.log.debug(
