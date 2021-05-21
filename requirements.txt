@@ -1,9 +1,9 @@
-###### Requirements without Version Specifiers ######`
 aiofiles
 asyncpg
 coverage
-discord.py[voice]==1.6
+discord.py[voice]==1.7.2
 jishaku
+gino
 prettytable
 psutil
 pylint
@@ -11,5 +11,3 @@ python-dotenv
 pytz
 wavelink
 wheel
-
-###### Requirements with Version Specifiers ######`

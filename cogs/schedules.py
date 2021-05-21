@@ -13,18 +13,21 @@ from prettytable import PrettyTable, PLAIN_COLUMNS
 
 class Schedules(commands.Cog):
     """Information about courses at NJIT"""
+
     def __init__(self, bot):
         self.bot = bot
-        self.base_endpoint = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term=" # pylint: disable=line-too-long
+        self.base_endpoint = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="  # pylint: disable=line-too-long
         self.current_semester = None
         self.schedule_data = None
         self.semester_codes = None
-        self.schedule_updater.add_exception_type(FileNotFoundError) # pylint: disable=no-member
-        self.schedule_updater.start() # pylint: disable=no-member
+        self.schedule_updater.add_exception_type(
+            FileNotFoundError
+        )  # pylint: disable=no-member
+        self.schedule_updater.start()  # pylint: disable=no-member
         self.log = logging.getLogger(__name__)
 
     def cog_unload(self):
-        self.schedule_updater.cancel() # pylint: disable=no-member
+        self.schedule_updater.cancel()  # pylint: disable=no-member
         self.log.info("Cog unloaded; schedule updater no longer running")
 
     @tasks.loop(minutes=5)
@@ -33,16 +36,27 @@ class Schedules(commands.Cog):
         # Retrieve the schedule data for the current semester
         base_dirname, base_filename = "cache", "scheduledata.json"
         latest_semester_code = "latest"
-        latest_semester_filename = f"{base_dirname}/{latest_semester_code}-{base_filename}"
-        await self.update_cache(latest_semester_filename, self.base_endpoint, latest_semester_code)
+        latest_semester_filename = (
+            f"{base_dirname}/{latest_semester_code}-{base_filename}"
+        )
+        await self.update_cache(
+            latest_semester_filename, self.base_endpoint, latest_semester_code
+        )
 
         # Retrieve the schedule data for the previous semester
-        loaded_semesters = self.schedule_data[self.current_semester]["ts"]["WSRESPONSE"]["SOAXREF"]
-        prev_semester_code = max(sem["EDIVALUE"] for sem in loaded_semesters
-                                 if sem["EDIVALUE"] != self.current_semester)
+        loaded_semesters = self.schedule_data[self.current_semester]["ts"][
+            "WSRESPONSE"
+        ]["SOAXREF"]
+        prev_semester_code = max(
+            sem["EDIVALUE"]
+            for sem in loaded_semesters
+            if sem["EDIVALUE"] != self.current_semester
+        )
         prev_semester_endpoint = f"{self.base_endpoint}{prev_semester_code}"
         prev_semester_filename = f"{base_dirname}/{prev_semester_code}-{base_filename}"
-        await self.update_cache(prev_semester_filename, prev_semester_endpoint, prev_semester_code)
+        await self.update_cache(
+            prev_semester_filename, prev_semester_endpoint, prev_semester_code
+        )
 
     async def update_cache_file(self, filename: str, endpoint: str) -> None:
         """Updates the requested cache file with the latest response from the endpoint.
@@ -56,16 +70,21 @@ class Schedules(commands.Cog):
                 async with session.get(endpoint) as response:
                     if response.status == 200:
                         data = await response.text()
-                        data = data[7:-1]  # Trim off "define( ... )" that surrounds the JSON
+                        data = data[
+                            7:-1
+                        ]  # Trim off "define( ... )" that surrounds the JSON
                         async with aiofiles.open(filename, "w") as cache_file:
                             await cache_file.write(data)
                     else:
                         self.log.error(
                             "Could not retrieve data for '%s'; endpoint responded with HTTP %s",
                             filename,
-                            response.status)
-        except Exception as exc: # pylint: disable=broad-except
-            self.log.error("Could not update cache file: %s: %s", type(exc).__name__, exc)
+                            response.status,
+                        )
+        except Exception as exc:  # pylint: disable=broad-except
+            self.log.error(
+                "Could not update cache file: %s: %s", type(exc).__name__, exc
+            )
         else:
             self.log.info("Cache file '%s' updated with latest data", filename)
 
@@ -82,13 +101,19 @@ class Schedules(commands.Cog):
             # print(last_updated)
             # Only send a request if the cached file is an hour old or older (3600+ seconds)
             if last_updated >= 3600:
-                self.log.debug("Cache file '%s' is stale; updating schedule data", filename)
+                self.log.debug(
+                    "Cache file '%s' is stale; updating schedule data", filename
+                )
                 await self.update_cache_file(filename, endpoint)
             else:
-                self.log.debug("Cache file '%s' is too fresh; keeping current schedule data",
-                                filename)
+                self.log.debug(
+                    "Cache file '%s' is too fresh; keeping current schedule data",
+                    filename,
+                )
         else:
-            self.log.info("Cache file '%s' was not found; downloading schedule data", filename)
+            self.log.info(
+                "Cache file '%s' was not found; downloading schedule data", filename
+            )
             await self.update_cache_file(filename, endpoint)
 
     async def update_cache_memory(self, filename: str, memory_location: str) -> None:
@@ -105,9 +130,13 @@ class Schedules(commands.Cog):
                 self.schedule_data = {memory_location: json.loads(data)}
             else:
                 self.schedule_data[memory_location] = json.loads(data)
-            self.log.debug("Cache file '%s' loaded into '%s'", filename, memory_location)
+            self.log.debug(
+                "Cache file '%s' loaded into '%s'", filename, memory_location
+            )
 
-    async def update_cache(self, filename: str, endpoint: str, memory_location: str) -> None:
+    async def update_cache(
+        self, filename: str, endpoint: str, memory_location: str
+    ) -> None:
         """Helper function that combines all of the previous subroutines.
         Also updates the semester code table and moves the "latest" cache file
         to its correct location.
@@ -120,15 +149,23 @@ class Schedules(commands.Cog):
         await self.update_cache_memory(filename, memory_location)
         if memory_location == "latest":
             # Refresh the semester code lookup table
-            loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"]["SOAXREF"] # pylint: disable=line-too-long
+            loaded_semesters = self.schedule_data[memory_location]["ts"]["WSRESPONSE"][
+                "SOAXREF"
+            ]  # pylint: disable=line-too-long
             self.current_semester = str(self.schedule_data[memory_location]["ct"])
-            self.semester_codes = {semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
-                                    for semester in loaded_semesters}
-            self.log.debug("Semester code table refreshed (current semester is '%s')",
-                            self.current_semester)
+            self.semester_codes = {
+                semester["EDIVALUE"]: semester["DESCRIPTION"].lower()
+                for semester in loaded_semesters
+            }
+            self.log.debug(
+                "Semester code table refreshed (current semester is '%s')",
+                self.current_semester,
+            )
 
             # Replace the "latest" key with the actual current semester code
-            self.schedule_data[self.current_semester] = self.schedule_data.pop(memory_location)
+            self.schedule_data[self.current_semester] = self.schedule_data.pop(
+                memory_location
+            )
 
     @schedule_updater.before_loop
     async def prepare_updater(self):
@@ -139,7 +176,7 @@ class Schedules(commands.Cog):
     @schedule_updater.after_loop
     async def cleanup_updater(self):
         """Unload cached data from memory when the tasks ends."""
-        if self.schedule_updater.is_being_cancelled(): # pylint: disable=no-member
+        if self.schedule_updater.is_being_cancelled():  # pylint: disable=no-member
             self.current_semester = None
             self.schedule_data = None
             self.semester_codes = None
@@ -147,7 +184,9 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=5.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, course_number: str, *, semester: str=None): # pylint: disable=too-many-locals
+    async def get_course(
+        self, ctx, course_number: str, *, semester: str = None
+    ):  # pylint: disable=too-many-locals
         """Retrieves info about a course based on the semester"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not self.schedule_data:
@@ -158,15 +197,19 @@ class Schedules(commands.Cog):
         selected_course = course_number.upper()
         if semester:
             selected_semester = semester.lower()
-            codes_reversed = dict((desc, code) for code, desc in self.semester_codes.items())
+            codes_reversed = dict(
+                (desc, code) for code, desc in self.semester_codes.items()
+            )
             if selected_semester not in codes_reversed:
                 raise commands.BadArgument("Requested semester does not exist.")
             selected_semester = codes_reversed[selected_semester]
         else:
             selected_semester = self.current_semester
-        self.log.debug("'%s' (%s) was selected",
-                       self.semester_codes[selected_semester],
-                       selected_semester)
+        self.log.debug(
+            "'%s' (%s) was selected",
+            self.semester_codes[selected_semester],
+            selected_semester,
+        )
 
         def get_sections(semester_code: str, selected_course: str):
             """Retrieves all of the matching sections for a given course in a single list
@@ -177,14 +220,22 @@ class Schedules(commands.Cog):
             :rtype: list
             """
             selected_prefix = selected_course[:-3]
-            semester_data = self.schedule_data[semester_code]["ws"]["WSRESPONSE"]["Subject"]
+            semester_data = self.schedule_data[semester_code]["ws"]["WSRESPONSE"][
+                "Subject"
+            ]
 
             # Unpack the inner list from the outer list
             # If the course does not exist, return an empty list
-            [matching_courses] = [subject["Course"] for subject in semester_data
-                                  if selected_prefix == subject["SUBJ"]] or [[]]
-            matching_sections = [course["Section"] for course in matching_courses
-                                 if selected_course == course["COURSE"]]
+            [matching_courses] = [
+                subject["Course"]
+                for subject in semester_data
+                if selected_prefix == subject["SUBJ"]
+            ] or [[]]
+            matching_sections = [
+                course["Section"]
+                for course in matching_courses
+                if selected_course == course["COURSE"]
+            ]
 
             # Reformat all matches into a single list
             matches = []
@@ -194,9 +245,11 @@ class Schedules(commands.Cog):
                 elif isinstance(section, dict):
                     matches.append(section)  # Single section
                 else:
-                    self.log.error("An unknown data structure was parsed for %s - %s",
-                                   selected_course,
-                                   section)
+                    self.log.error(
+                        "An unknown data structure was parsed for %s - %s",
+                        selected_course,
+                        section,
+                    )
             return matches
 
         # Error check if the course exists for that semester
@@ -206,26 +259,43 @@ class Schedules(commands.Cog):
 
         # Create and format the table
         unknown = "<Unassigned>"
-        instructor_column_size = max(len(section["INSTRUCTOR"].split(",", 1)[0])
-                                     for section in course_sections) + 1
+        instructor_column_size = (
+            max(
+                len(section["INSTRUCTOR"].split(",", 1)[0])
+                for section in course_sections
+            )
+            + 1
+        )
         schedule_display = PrettyTable()
         schedule_display.set_style(PLAIN_COLUMNS)
-        schedule_display.field_names = ["SEC", "INSTRUCTOR", "SEATS", "TYPE", "MEETING TIMES"]
+        schedule_display.field_names = [
+            "SEC",
+            "INSTRUCTOR",
+            "SEATS",
+            "TYPE",
+            "MEETING TIMES",
+        ]
         schedule_display.align["SEATS"] = "l"
         schedule_display.align["MEETING TIMES"] = "r"
         schedule_display.left_padding_width = 1
         schedule_display.right_padding_width = 1
-        schedule_display._max_width = {"INSTRUCTOR": instructor_column_size # pylint: disable=protected-access
-                                                     if instructor_column_size >= len(unknown)
-                                                     else len(unknown)}
+        schedule_display._max_width = {
+            "INSTRUCTOR": instructor_column_size  # pylint: disable=protected-access
+            if instructor_column_size >= len(unknown)
+            else len(unknown)
+        }
 
         # Create the table header
-        course_titles = set(section["TITLE"] for section in course_sections
-                            if "honors" not in section["TITLE"].lower())
+        course_titles = set(
+            section["TITLE"]
+            for section in course_sections
+            if "honors" not in section["TITLE"].lower()
+        )
         header = ":calendar_spiral: {} - {} ({})\n".format(
             self.semester_codes[selected_semester].title(),
             selected_course,
-            " / ".join(course_titles))
+            " / ".join(course_titles),
+        )
 
         def process_meeting_times(data, course_num: str, section_num: str):
             """Helper function that formats the meeting time hours of a section."""
@@ -233,37 +303,59 @@ class Schedules(commands.Cog):
             # Format times to standard 12-hour instead of 24-hour
             try:
                 if isinstance(data, list):
-                    meetings = [(meeting["MTG_DAYS"],
-                                 datetime.strptime(
-                                     meeting["START_TIME"], "%H%M").strftime("%I:%M %p"),
-                                 datetime.strptime(
-                                     meeting["END_TIME"], "%H%M").strftime("%I:%M %p"))
-                                 for meeting in data]
-                    output = "\n".join("{}: {} - {}".format(*meeting) for meeting in meetings)
+                    meetings = [
+                        (
+                            meeting["MTG_DAYS"],
+                            datetime.strptime(meeting["START_TIME"], "%H%M").strftime(
+                                "%I:%M %p"
+                            ),
+                            datetime.strptime(meeting["END_TIME"], "%H%M").strftime(
+                                "%I:%M %p"
+                            ),
+                        )
+                        for meeting in data
+                    ]
+                    output = "\n".join(
+                        "{}: {} - {}".format(*meeting) for meeting in meetings
+                    )
                 elif isinstance(data, dict) and len(data) > 1:
                     output = "{}: {} - {}".format(
                         data["MTG_DAYS"],
-                        datetime.strptime(data["START_TIME"], "%H%M").strftime("%I:%M %p"),
-                        datetime.strptime(data["END_TIME"], "%H%M").strftime("%I:%M %p"))
+                        datetime.strptime(data["START_TIME"], "%H%M").strftime(
+                            "%I:%M %p"
+                        ),
+                        datetime.strptime(data["END_TIME"], "%H%M").strftime(
+                            "%I:%M %p"
+                        ),
+                    )
             except KeyError:
-                self.log.error("Missing schedule data for %s - %s", course_num, section_num)
+                self.log.error(
+                    "Missing schedule data for %s - %s", course_num, section_num
+                )
                 output = "MISSING DATA"
 
             return output
 
         # Process each section and add it to the table
         for section in course_sections:
-            instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
+            instructor = (
+                section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else unknown
+            )
             seats = f"{section['ENROLLED']}/{section['CAPACITY']}"
             meeting_times = process_meeting_times(
                 section["Schedule"] if "Schedule" in section else None,
                 selected_course,
-                section["SECTION"])
-            schedule_display.add_row([section["SECTION"],
-                                      instructor,
-                                      seats,
-                                      section["INSTRUCTIONMETHOD"].replace(" ", "\n"),
-                                      meeting_times])
+                section["SECTION"],
+            )
+            schedule_display.add_row(
+                [
+                    section["SECTION"],
+                    instructor,
+                    seats,
+                    section["INSTRUCTIONMETHOD"].replace(" ", "\n"),
+                    meeting_times,
+                ]
+            )
 
         # In a future version of discord.py (v1.5 or v2.0), this will be replaced
         # with the library's built-in paginator
@@ -284,7 +376,9 @@ class Schedules(commands.Cog):
             await ctx.send(output)
             await asyncio.sleep(1)
             counter += max_lines
-            output, max_lines = shrink_output(schedule_display, counter, max_lines, False)
+            output, max_lines = shrink_output(
+                schedule_display, counter, max_lines, False
+            )
 
     @get_course.error
     async def get_course_error(self, ctx: commands.Context, error):

@@ -1,7 +1,3 @@
-"""This module contains Clown of the Week, a feature where users are nominated
-to be a clown for past actions or things they said that is complete tomfoolery.
-The status is kept on them for a week, hence the name.
-"""
 import asyncio
 import logging
 from datetime import date, datetime, timedelta
@@ -10,45 +6,47 @@ import discord
 import wavelink
 from discord.ext import commands, tasks
 
+from db import db
+from db.models import Clown
 
-class Clown(commands.Cog):
+
+class ClownWeek(commands.Cog):
     """Stuff related to clown of the week"""
+
     def __init__(self, bot):
         self.bot = bot
-        self.last_joined = datetime.now()
         self.polls = {}
-        self.query = None
-        self.result = None
         self.server_clowns = None
-        self.update_cache.start() # pylint: disable=no-member
+        self.update_cache.start()
         self.log = logging.getLogger(__name__)
 
-        self.node_name = "CLOWN"
-        # Does not overwrite the client on cog reload
+        # Do not overwrite the client on cog reload
         if not hasattr(bot, "wavelink"):
             self.bot.wavelink = wavelink.Client(bot=self.bot)
 
         self.bot.loop.create_task(self.start_nodes())
 
     async def start_nodes(self):
-        """Establish connections to the Lavalink server"""
+        """Establish connection to the Lavalink server"""
         await self.bot.wait_until_ready()
 
-        node = self.bot.wavelink.get_node(self.node_name)
+        clown_node_name = "CLOWN"
+        node = self.bot.wavelink.get_node(clown_node_name)
         if not node:
             node = await self.bot.wavelink.initiate_node(
-                host=self.bot.lavalink["HOST"],
-                port=int(self.bot.lavalink["PORT"]),
-                rest_uri=f"http://{self.bot.lavalink['HOST']}:{self.bot.lavalink['PORT']}",
-                password=self.bot.lavalink["PASSWORD"],
-                identifier=self.node_name,
-                region=self.bot.lavalink["REGION"])
+                host=self.bot.lavalink_host,
+                port=self.bot.lavalink_port,
+                rest_uri=f"http://{self.bot.lavalink_host}:{self.bot.lavalink_port}",
+                password=self.bot.lavalink_password,
+                identifier=clown_node_name,
+                region=self.bot.lavalink_region,
+            )
 
         # Disconnect Pingu when the audio finishes playing or an error occurs
         node.set_hook(self.on_event_hook)
 
     async def on_event_hook(self, event):
-        """Catch events from a node"""
+        """Catch events from a Wavelink node"""
         if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
             await event.player.destroy()
 
@@ -57,137 +55,155 @@ class Clown(commands.Cog):
 
     @tasks.loop(count=1)
     async def update_cache(self):
-        """Updates the memory cache on startup or entry update"""
-        async with self.bot.db.acquire() as conn:
-            results = await conn.fetch("SELECT * FROM clowns;")
-            self.server_clowns = {result["guild_id"]: {
-                "clown_id": result["clown_id"],
-                "clowned_on": result["clowned_on"],
-                "last_joined": datetime.now() - timedelta(minutes=15),
-            } for result in results}
-        self.log.info("Refreshed memory cache of server clowns")
+        """Updates the cache as necessary"""
+        async with db.with_bind(self.bot.postgres_url):
+            self.server_clowns = await Clown.query.gino.all()
+        self.log.info("Updated clown data cache")
 
-    @tasks.loop(count=1)
-    async def fetch_row(self):
-        """Sends a fetch_row query to the PostgreSQL server"""
-        # Make sure the input is sanitized before executing queries
-        async with self.bot.db.acquire() as conn:
-            self.result = await conn.fetchrow(self.query)
-
-    @fetch_row.before_loop
     @update_cache.before_loop
-    async def delay_queries(self):
-        """Prevents queries from executing until a database connection can be established"""
+    async def wait_for_bot(self):
+        """Prevent cache updates until the bot is ready"""
         await self.bot.wait_until_ready()
 
-    @commands.group(name="clown")
+    @commands.command(name="clown")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
-    async def clown(self, ctx):
-        """Type `help clown` to see more info on this command
-
-        **clown**
-        Show who the clown is in the server
-        """
-        if ctx.invoked_subcommand:
+    async def clown_info(self, ctx):
+        """Check who the clown is in the server"""
+        if self.server_clowns is None:
+            error_icon = self.bot.icons["fail"]
+            await ctx.send(
+                f"{error_icon} Clown data did not load yet. Try again later."
+            )
             return
 
-        if (ctx.guild.id not in self.server_clowns or
-            not self.server_clowns[ctx.guild.id]["clown_id"]):
+        guild_exists = ctx.guild.id in (clown.guild_id for clown in self.server_clowns)
+        if not guild_exists:
             info_icon = self.bot.icons["info"]
             await ctx.send(f"{info_icon} The clown is no one.")
             return
 
         # MemberConverter requires a string value
+        guild_clown_data = next(
+            clown for clown in self.server_clowns if clown.guild_id == ctx.guild.id
+        )
         try:
             server_clown = await commands.MemberConverter().convert(
-                ctx, str(self.server_clowns[ctx.guild.id]["clown_id"]))
-            self.log.debug(self.server_clowns[ctx.guild.id]["clown_id"])
-        except commands.BadArgument as exc:
-            raise commands.BadArgument("The clown is no longer in the server.") from exc
+                ctx, str(guild_clown_data.clown_id)
+            )
+            self.log.info(guild_clown_data.clown_id)
+        except commands.BadArgument:
+            raise commands.BadArgument("The clown is no longer in the server.")
         else:
             info_icon = self.bot.icons["info"]
-            if not server_clown.nick:
-                await ctx.send(f"{info_icon} The clown is `{server_clown}`.")
-            else:
-                await ctx.send(
-                    f"{info_icon} The clown is `{server_clown}` (`{server_clown.nick}`).")
+            time_spent = date.today() - guild_clown_data.nomination_date
+            await ctx.send(
+                f"{info_icon} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago)."
+            )
 
-    @clown.command(name="nominate", aliases=["nom"])
-    async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member): # pylint: disable=too-many-return-statements
+    @commands.command(name="nominate", aliases=["nom"])
+    async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week
 
-        The following are valid when providing a reason:
-        - Typing in the reason
-        - Attaching a picture
-        - Doing both (but make sure it's uploaded together)
-
-        Some other notes:
-        - You need to upload the actual image file, not a link
-        - Only the first image is used
+        Make sure to put a reason or else your nomination will be rejected
         """
-        # Parse arguments
         error_icon = self.bot.icons["fail"]
+        if self.server_clowns is None:
+            await ctx.send(
+                f"{error_icon} Clown data has not been loaded yet. Please try again later."
+            )
+            return
+
         if ctx.guild.id in self.polls and self.polls[ctx.guild.id]:
-            await ctx.send(f"{error_icon} A nomination is currently in progress.")
+            await ctx.send(f"{error_icon} Only one nomination at a time.")
             return
-        if user.bot:
-            await ctx.send(f"{error_icon} Potential feedback loop detected. Canceling.")
-            return
-        # Check if targeting the noot noot, and assign to nominator
+
+        # Check if targeting the noot noot, then assign to nominator
         if user.id == self.bot.owner_id and ctx.author.id != self.bot.owner_id:
             user = ctx.author
+
         # Prevent the clown from nominating until a week passed
-        if (ctx.guild.id in self.server_clowns and
-                (date.today() - self.server_clowns[ctx.guild.id]["clowned_on"] <= timedelta(days=7)) and
-                ctx.message.author.id == self.server_clowns[ctx.guild.id]["clown_id"]):
-            self.polls[ctx.guild.id] = False
-            await ctx.send(f"{error_icon} You cannot nominate someone at this time.")
-            return
+        clown_data = next(
+            (clown for clown in self.server_clowns if clown.guild_id == ctx.guild.id),
+            None,
+        )
+        if clown_data is not None:
+            previous_clown = user.id == clown_data.previous_clown_id
+            if previous_clown:
+                await ctx.send(
+                    f"{error_icon} You cannot nominate the same person again. Choose someone else."
+                )
+                return
+
+            current_clown = ctx.author.id == clown_data.clown_id
+            time_spent = date.today() - clown_data.nomination_date
+            eligible = time_spent >= timedelta(days=7)
+
+            self.log.info("Clown? %s, Eligible? %s", current_clown, eligible)
+            if current_clown and not eligible:
+                await ctx.send(
+                    f"{error_icon} You cannot nominate someone yet ({max(0, 7 - time_spent.days)} day(s) left)."
+                )
+                return
 
         # Set poll semaphore
         self.polls[ctx.guild.id] = True
 
         # Confirm the message received is indeed the user that sent it
         nominator = ctx.message.author
-        nomination_time = 60 # seconds
+        nomination_time = 30  # seconds
         nomination_prompt = await ctx.send(
-            f"{nominator.mention}, you have {nomination_time} seconds to give a reason for the nomination.")
+            f"{nominator.mention}, you have {nomination_time} seconds to give a reason for the nomination."
+        )
+
         def confirm_message(msg):
-            return msg.author.id == nominator.id and msg.channel.id == ctx.message.channel.id
+            return (
+                msg.author.id == nominator.id
+                and msg.channel.id == ctx.message.channel.id
+            )
+
         try:
-            nomination_reason = await self.bot.wait_for("message",
-                                                        timeout=nomination_time,
-                                                        check=confirm_message)
+            nomination_reason = await self.bot.wait_for(
+                "message", timeout=nomination_time, check=confirm_message
+            )
             await nomination_prompt.delete()
         except asyncio.TimeoutError:
             self.polls[ctx.guild.id] = False
             await nomination_prompt.delete()
-            await ctx.send(f"{error_icon} No reason was provided. Canceling nomination.")
+            await ctx.send(f"{error_icon} No reason provided. Canceling nomination.")
             return
 
         def create_poll(reason: discord.Message, delay: int) -> discord.Embed:
             """A template to create the nomination poll"""
-            poll_embed = discord.Embed(title="Clown of the Week",
-                                       colour=self.bot.embed_colour,
-                                       timestamp=(datetime.utcnow() + timedelta(seconds=delay)))
-            poll_embed.set_author(name=f"Nominated by: {ctx.message.author}",
-                                  icon_url=ctx.author.avatar_url)
+            poll_embed = discord.Embed(
+                title="Clown of the Week",
+                colour=self.bot.embed_colour,
+                timestamp=(datetime.utcnow() + timedelta(seconds=delay)),
+            )
+            poll_embed.set_author(
+                name=f"Vote started by: {ctx.message.author}",
+                icon_url=ctx.author.avatar_url,
+            )
             poll_embed.set_footer(text="Voting will end")
 
             # Cut off text that exceeds 1800 characters
             if len(reason.content) <= 1800:
-                poll_embed.description = f"{user} was nominated because:\n\n{reason.content}"
+                poll_embed.description = (
+                    f"{user} was nominated for:\n\n{reason.content}"
+                )
             else:
-                poll_embed.description = f"{user} was nominated because:\n\n{reason.content[:1797]}..."
+                poll_embed.description = (
+                    f"{user} was nominated for:\n\n{reason.content[:1800]}..."
+                )
             # Invalid images/URLs will just set an empty image
             if reason.attachments:
                 poll_embed.set_image(url=reason.attachments[0].url)
             return poll_embed
 
         # Store the nomination message in the semaphore
-        poll_delay = 120 # seconds
+        poll_delay = 60  # seconds
         self.polls[ctx.guild.id] = await ctx.send(
-            embed=create_poll(nomination_reason, poll_delay))
+            embed=create_poll(nomination_reason, poll_delay)
+        )
         await self.polls[ctx.guild.id].add_reaction("\N{white heavy check mark}")
         await self.polls[ctx.guild.id].add_reaction("\N{cross mark}")
         await asyncio.sleep(poll_delay)
@@ -197,41 +213,67 @@ class Clown(commands.Cog):
         # Refresh message for reaction changes
         try:
             self.polls[ctx.guild.id] = await ctx.message.channel.fetch_message(
-                self.polls[ctx.guild.id].id)
+                self.polls[ctx.guild.id].id
+            )
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             self.polls[ctx.guild.id] = False
-            await ctx.send(f"{error_icon} Unable to retrieve poll data. Canceling nomination.")
+            await ctx.send(
+                f"{error_icon} Unable to retrieve votes. Canceling nomination."
+            )
             return
 
         # Check the results of the poll
-        results = {reaction.emoji: reaction.count
-                   for reaction in self.polls[ctx.guild.id].reactions}
+        poll_reactions = self.polls[ctx.guild.id].reactions
+        total_reactions = (
+            sum(
+                reaction.count
+                for reaction in poll_reactions
+                if reaction.emoji == "❌" or reaction.emoji == "✅"
+            )
+            - 2
+        )
+        results = {reaction.emoji: (reaction.count - 1) for reaction in poll_reactions}
+        self.log.info("Results: %s, Total: %s", results, total_reactions)
+        if total_reactions < 0 or results["❌"] < 0 or results["✅"] < 0:
+            self.polls[ctx.guild.id] = False
+            await ctx.send(":eyes: Someone manipulated the votes.")
+            return
         if "❌" not in results or "✅" not in results:
             self.polls[ctx.guild.id] = False
-            await ctx.send(
-                f"{error_icon} Someone removed all of the votes for the nomination :eyes:")
+            await ctx.send(":eyes: Someone removed all of the votes.")
             return
-        if results["❌"] >= results["✅"]:
+
+        nomination_percent = int(results["✅"] / total_reactions)
+        nomination_threshold = 50
+        if nomination_percent < nomination_threshold:
             self.polls[ctx.guild.id] = False
-            await ctx.send(f"{error_icon} Nomination failed to gain enough votes.")
+            await ctx.send(
+                f"{error_icon} Nomination did not pass the {nomination_threshold}% threshold (was {nomination_percent}%)."
+            )
             return
 
         # Change the clown because enough votes were in favor of the nomination
-        if self.server_clowns and ctx.guild.id in self.server_clowns:
-            self.query = f"UPDATE clowns SET clown_id = {user.id}, clowned_on = NOW() WHERE guild_id = {ctx.guild.id};" # pylint: disable=line-too-long
-        else:
-            self.query = f"INSERT INTO clowns (guild_id, clown_id, clowned_on) VALUES('{ctx.guild.id}', '{user.id}', NOW());" # pylint: disable=line-too-long
-        self.fetch_row.start() # pylint: disable=no-member
-        while self.fetch_row.is_running(): # pylint: disable=no-member
-            await asyncio.sleep(1)
-        self.update_cache.start() # pylint: disable=no-member
+        async with db.with_bind(self.bot.postgres_url) as engine:
+            if clown_data is None:
+                new_clown = await Clown.create(
+                    guild_id=ctx.guild.id,
+                    clown_id=ctx.author.id,
+                    previous_clown_id=None,
+                    nomination_date=datetime.now(),
+                    join_time=datetime.now(),
+                    bind=engine,
+                )
+                await new_clown.create()
+            else:
+                new_clown = clown_data
+                await new_clown.update(previous_clown_id=new_clown.clown_id).apply()
+                await new_clown.update(clown_id=user.id).apply()
+                await new_clown.update(nomination_date=datetime.now()).apply()
+
+        self.update_cache.start()
 
         # Display who the new clown is
-        if not user.nick:
-            await ctx.send(f"{self.bot.icons['info']} The clown is now `{user}`.")
-        else:
-            await ctx.send(
-                f"{self.bot.icons['info']} The clown is now `{user}` (`{user.nick}`).")
+        await ctx.send(f"{self.bot.icons['info']} The clown is now `{user}`.")
 
         # Undo semaphore
         self.polls[ctx.guild.id] = False
@@ -245,15 +287,20 @@ class Clown(commands.Cog):
             if error.param.name == "user":
                 await ctx.send(f"{error_icon} No candidate was specified.")
             elif error.param.name == "reason":
-                await ctx.send(f"{error_icon} No reason was provided for the nomination.")
+                await ctx.send(
+                    f"{error_icon} No reason was provided for the nomination."
+                )
             return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{error_icon} User is not in the server.")
             return
 
-    @clown.command(name="honk", case_insensitive=True)
-    # @commands.bot_has_guild_permissions(connect=True, speak=True) # This throws a CheckFailure
-    async def honk(self, ctx: commands.Context, *, channel: discord.VoiceChannel=None):
+    @commands.command(name="honk", case_insensitive=True)
+    # Removed since this throws a CheckFailure
+    # @commands.bot_has_guild_permissions(connect=True, speak=True)
+    async def honk(
+        self, ctx: commands.Context, *, channel: discord.VoiceChannel = None
+    ):
         """Honk at the clown when they're in a voice channel
 
         Omitting **[channel]** means the clown has to be in the same
@@ -263,7 +310,9 @@ class Clown(commands.Cog):
             try:
                 channel = ctx.author.voice.channel
             except AttributeError as exc:
-                raise commands.BadArgument("Join a voice channel or specify it by name.") from exc
+                raise commands.BadArgument(
+                    "Join a voice channel or specify it by name."
+                ) from exc
 
         # Check the clown is in the voice channel
         connected_users = set(member.id for member in channel.members)
@@ -272,7 +321,9 @@ class Clown(commands.Cog):
 
         player = self.bot.wavelink.get_player(ctx.guild.id, node_id=self.node_name)
         if player.is_connected:
-            raise commands.BadArgument("Something is already playing in a voice channel.")
+            raise commands.BadArgument(
+                "Something is already playing in a voice channel."
+            )
         if not await self.can_connect(channel, ctx=ctx):
             return
 
@@ -284,8 +335,10 @@ class Clown(commands.Cog):
     async def prepare_clown(self, ctx: commands.Context):
         """Ensures all the conditions are good before connecting to voice"""
         # If no record exists in the database
-        if (ctx.guild.id not in self.server_clowns or
-            not self.server_clowns[ctx.guild.id]["clown_id"]):
+        if (
+            ctx.guild.id not in self.server_clowns
+            or not self.server_clowns[ctx.guild.id]["clown_id"]
+        ):
             raise commands.BadArgument("No clown was set.")
 
     @honk.error
@@ -295,10 +348,13 @@ class Clown(commands.Cog):
             error_icon = self.bot.icons["fail"]
             missing = "`, `".join(error.missing_perms)
             await ctx.send(
-                f"{error_icon} I'm missing the `{missing}` permission(s) for the server.")
+                f"{error_icon} I'm missing the `{missing}` permission(s) for the server."
+            )
             return
 
-    async def can_connect(self, voice: discord.VoiceChannel, ctx: commands.Context=None) -> bool:
+    async def can_connect(
+        self, voice: discord.VoiceChannel, ctx: commands.Context = None
+    ) -> bool:
         """Custom voice channel permission checker that was implemented because...
         1. @commands.bot_has_guild_permissions(...) decorator only checks if the bot has
             this permission in one of the roles it has in the SERVER, and the
@@ -312,18 +368,28 @@ class Clown(commands.Cog):
             return True
 
         if ctx:
-            required_perms = {"connect": self_permissions.connect,
-                              "speak": self_permissions.speak,
-                              "view channel": self_permissions.view_channel}
-            missing_perms = "`, `".join(perm for perm, val in required_perms.items() if not val)
+            required_perms = {
+                "connect": self_permissions.connect,
+                "speak": self_permissions.speak,
+                "view channel": self_permissions.view_channel,
+            }
+            missing_perms = "`, `".join(
+                perm for perm, val in required_perms.items() if not val
+            )
             icon = self.bot.icons["fail"]
             await ctx.send(
-                f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel.")
+                f"{icon} I'm missing `{missing_perms}` permission(s) for the voice channel."
+            )
         return False
 
+    # TODO: replace all cache references to new version
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member,
-                                    before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState,
+    ):
         """Triggers when the clown joins a voice channel and was not previously in another voice
         channel in the server.
 
@@ -347,22 +413,29 @@ class Clown(commands.Cog):
                 return
             # Skip if a week or more passed
             today = datetime.now().date()
-            more_than_a_week = (today - self.server_clowns[member.guild.id]["clowned_on"]) >= timedelta(days=7)
+            more_than_a_week = (
+                today - self.server_clowns[member.guild.id]["clowned_on"]
+            ) >= timedelta(days=7)
             if more_than_a_week:
                 self.log.debug(
                     "New nomination in '%s' is needed for the auto-honk feature to activate",
-                    member.guild.id)
+                    member.guild.id,
+                )
                 return
             # Skip if they are abusing the bot
-            spam = (datetime.now() - self.server_clowns[member.guild.id]["last_joined"]) <= timedelta(minutes=15)
+            spam = (
+                datetime.now() - self.server_clowns[member.guild.id]["last_joined"]
+            ) <= timedelta(minutes=15)
             if spam:
                 self.log.debug(
-                    "Potential spam connect/disconnect by '%s'",
-                    member.guild.id)
+                    "Potential spam connect/disconnect by '%s'", member.guild.id
+                )
                 return
 
             self.server_clowns[member.guild.id]["last_joined"] = datetime.now()
-            player = self.bot.wavelink.get_player(member.guild.id, node_id=self.node_name)
+            player = self.bot.wavelink.get_player(
+                member.guild.id, node_id=self.node_name
+            )
             if await self.can_connect(after.channel) and not player.is_connected:
                 tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
                 await player.connect(after.channel.id)
@@ -371,4 +444,4 @@ class Clown(commands.Cog):
 
 def setup(bot):
     """Adds this module in as a cog to Pingu."""
-    bot.add_cog(Clown(bot))
+    bot.add_cog(ClownWeek(bot))

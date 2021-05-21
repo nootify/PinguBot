@@ -1,7 +1,6 @@
 # Secrets
 .env
 # Unnecessary clutter
-database
 lavalink
 soundfx
 docker-compose.yml
@@ -12,4 +11,3 @@ docker-compose.yml
 **/.vscode
 # Temporary pingu files
 cache/**
-pingu.log

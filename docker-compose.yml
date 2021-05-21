@@ -10,15 +10,12 @@ services:
       - audio
       - db
     environment:
-      - LAVALINKHOST
-      - LAVALINKPORT
-      - LAVALINKPASSWORD
-      - LAVALINKREGION
+      - LAVALINK_PASSWORD
+      - LAVALINK_REGION
       - PINGU_TOKEN
-      - PGHOST
-      - PGUSER
-      - PGDATABASE
-      - PGPASSWORD
+      - POSTGRES_USER
+      - POSTGRES_DB
+      - POSTGRES_PASSWORD
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
     image: pingubot:latest
@@ -43,7 +40,7 @@ services:
       - POSTGRES_USER
       - POSTGRES_DB
       - POSTGRES_PASSWORD
-    image: postgres:latest
+    image: postgres:13
     # Only needed if the host needs to access it
     # ports:
     #   - "5432:5432"
@@ -53,7 +50,7 @@ services:
     user: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./database/template.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # - ./database/template.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 networks:
   bot_network:
