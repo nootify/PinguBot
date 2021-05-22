@@ -68,12 +68,8 @@ class Miscellaneous(commands.Cog):
 
             # Percentage calculations
             bot_cpu_percent = self.proc.cpu_percent()
-            main_mem_percent = (
-                mem.uss / sys_mem.total
-            ) * 100  # Memory usage of main thread
-            all_mem_percent = (
-                mem.rss / sys_mem.total
-            ) * 100  # Memory usage of all threads
+            main_mem_percent = (mem.uss / sys_mem.total) * 100  # Memory usage of main thread
+            all_mem_percent = (mem.rss / sys_mem.total) * 100  # Memory usage of all threads
             # sys_mem_percent = 100 - sys_mem.percent  # Memory usage of the OS
 
         # Processes
@@ -86,15 +82,10 @@ class Miscellaneous(commands.Cog):
         hrs, remainder = divmod(int(diff.total_seconds()), 3600)
         mins, secs = divmod(remainder, 60)
         days, hrs = divmod(hrs, 24)
-        total_uptime = (
-            f"**{days}** days, **{hrs}** hours,\n"
-            + f"**{mins}** minutes, **{secs}** seconds"
-        )
+        total_uptime = f"**{days}** days, **{hrs}** hours,\n" + f"**{mins}** minutes, **{secs}** seconds"
 
         # Embed stats into the message
-        stats_embed = discord.Embed(
-            title="", description="", colour=self.bot.embed_colour
-        )
+        stats_embed = discord.Embed(title="", description="", colour=self.bot.embed_colour)
         stats_embed.set_author(name="Pingu Status", icon_url=ctx.me.avatar_url)
         stats_embed.set_footer(
             text=f"{ping_icon} Pinged in: {bot_ping:.2f} ms • Running on Python {py_version} and Discord.py {dpy_version}"
@@ -132,9 +123,7 @@ class Miscellaneous(commands.Cog):
             ),
             (
                 "Processes",
-                f"**PIDs:** {bot_pids}\n"
-                + f"**Threads:** {len(bot_threads)}\n"
-                + f"**Uptime:**\n{total_uptime}",
+                f"**PIDs:** {bot_pids}\n" + f"**Threads:** {len(bot_threads)}\n" + f"**Uptime:**\n{total_uptime}",
             ),
             ("Sharding", "Currently not enabled"),
         ]
@@ -164,9 +153,7 @@ class Miscellaneous(commands.Cog):
         ctx.local_error_only = True
         if isinstance(error, commands.BadArgument):
             error_icon = self.bot.icons["fail"]
-            await ctx.send(
-                f"{error_icon} User is not in the server or the discreet yoink didn't find anyone."
-            )
+            await ctx.send(f"{error_icon} User is not in the server or the discreet yoink didn't find anyone.")
             return
 
 

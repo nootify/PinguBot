@@ -21,9 +21,7 @@ class Alert(commands.Cog):
         return await self.bot.is_owner(ctx.author)
 
     def cog_unload(self):
-        self.log.info(
-            "Cog unloaded; stopping 1234 and resetting message location to nowhere"
-        )
+        self.log.info("Cog unloaded; stopping 1234 and resetting message location to nowhere")
         self.message_location = None
         self.sent_message = None
         self.message_1234.cancel()
@@ -51,9 +49,7 @@ class Alert(commands.Cog):
                 channel_id = int(channel_id)
             except ValueError as exc:
                 self.log.error("Failed to parse server ID and/or text channel ID")
-                raise commands.BadArgument(
-                    "Given ID(s) were not a numerical value."
-                ) from exc
+                raise commands.BadArgument("Given ID(s) were not a numerical value.") from exc
 
             # Search for the server using its ID
             selected_guild = self.bot.get_guild(guild_id)
@@ -70,9 +66,7 @@ class Alert(commands.Cog):
             selected_channel = selected_guild.get_channel(channel_id)
             if not selected_channel:
                 self.log.error("Unable to find requested channel")
-                raise commands.BadArgument(
-                    "Specified text channel does not exist or read permission(s) were not given"
-                )
+                raise commands.BadArgument("Specified text channel does not exist or read permission(s) were not given")
             self.log.info(
                 "Found requested text channel (id: %s, name: %s)",
                 selected_channel.id,
@@ -86,12 +80,8 @@ class Alert(commands.Cog):
         # Check the channel permissions
         self_permissions = self.message_location.permissions_for(ctx.me)
         if not self_permissions.send_messages:
-            self.log.error(
-                "Missing permission to send messages in the specified location"
-            )
-            raise commands.BadArgument(
-                "Missing permission to send messages in that channel."
-            )
+            self.log.error("Missing permission to send messages in the specified location")
+            raise commands.BadArgument("Missing permission to send messages in that channel.")
 
         # Restart the task (the following condition will be used when discord.py 1.4.0 is released)
         if self.message_1234.is_running():  # pylint: disable=no-member
@@ -119,12 +109,8 @@ class Alert(commands.Cog):
         now = utc.localize(datetime.utcnow())
         if self.message_location:
             today_12am = eastern.localize(datetime(now.year, now.month, now.day, 0, 34))
-            today_12pm = eastern.localize(
-                datetime(now.year, now.month, now.day, 12, 34)
-            )
-            tomorrow_12am = eastern.localize(
-                datetime(now.year, now.month, now.day + 1, 0, 34)
-            )
+            today_12pm = eastern.localize(datetime(now.year, now.month, now.day, 12, 34))
+            tomorrow_12am = eastern.localize(datetime(now.year, now.month, now.day + 1, 0, 34))
 
             debug_mode = False
             if debug_mode:
@@ -149,9 +135,7 @@ class Alert(commands.Cog):
                     tomorrow_12am.astimezone(utc),
                     tomorrow_12am.astimezone(eastern),
                 )
-                self.log.warning(
-                    "DEBUG MODE ENABLED: Firing in the next %s seconds", wait_this_long
-                )
+                self.log.warning("DEBUG MODE ENABLED: Firing in the next %s seconds", wait_this_long)
                 await asyncio.sleep(wait_this_long)
             elif now <= today_12am:
                 wait = (today_12am - now).total_seconds()
@@ -199,24 +183,17 @@ class Alert(commands.Cog):
         if self.sent_message and self.sent_message.id == message.id:
             message_guild = message.guild
             message_deleter = None
-            if (
-                message_guild.id == 143909103951937536
-                or message_guild.id == 276571138455502848
-            ):
+            if message_guild.id == 143909103951937536 or message_guild.id == 276571138455502848:
                 self_permissions = message.channel.permissions_for(message_guild.me)
                 if self_permissions.view_audit_log:
-                    async for entry in message_guild.audit_logs(
-                        limit=20, action=discord.AuditLogAction.message_delete
-                    ):
+                    async for entry in message_guild.audit_logs(limit=20, action=discord.AuditLogAction.message_delete):
                         if entry.target == message_guild.me:
                             message_deleter = entry.user
                             break
 
             # Checking who deleted the message requires the Audit Log permission
             if not message_deleter:
-                self.sent_message = await message.channel.send(
-                    "Stop deleting my messages >:("
-                )
+                self.sent_message = await message.channel.send("Stop deleting my messages >:(")
             else:
                 self.sent_message = await message.channel.send(
                     f"{message_deleter.mention} Stop deleting my messages >:("

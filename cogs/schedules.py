@@ -11,9 +11,7 @@ from discord.ext import commands, tasks
 class Schedules(commands.Cog):
     """Information about courses at NJIT"""
 
-    SCHEDULE_URL = (
-        "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="
-    )
+    SCHEDULE_URL = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="
     SEMESTER_CODES = {}
     SEMESTER_DATA = {}
     LATEST_SEMESTER = None
@@ -119,18 +117,10 @@ class Schedules(commands.Cog):
 
         # Needlessly complicated JSON structure :(
         matching_course = next(
-            (
-                subject["Course"]
-                for subject in semester_data
-                if subject["SUBJ"] == prefix
-            ),
+            (subject["Course"] for subject in semester_data if subject["SUBJ"] == prefix),
             [],
         )
-        matching_sections = [
-            course["Section"]
-            for course in matching_course
-            if course["COURSE"] == course_number
-        ]
+        matching_sections = [course["Section"] for course in matching_course if course["COURSE"] == course_number]
 
         # Put all sections into a single list
         parsed_sections = []
@@ -158,27 +148,17 @@ class Schedules(commands.Cog):
                 meetings = [
                     (
                         meeting["MTG_DAYS"],
-                        datetime.strptime(meeting["START_TIME"], "%H%M")
-                        .strftime("%I:%M %p")
-                        .lstrip("0"),
-                        datetime.strptime(meeting["END_TIME"], "%H%M")
-                        .strftime("%I:%M %p")
-                        .lstrip("0"),
+                        datetime.strptime(meeting["START_TIME"], "%H%M").strftime("%I:%M %p").lstrip("0"),
+                        datetime.strptime(meeting["END_TIME"], "%H%M").strftime("%I:%M %p").lstrip("0"),
                     )
                     for meeting in data
                 ]
-                output = "\n".join(
-                    "• {}: {} - {}".format(*meeting) for meeting in meetings
-                )
+                output = "\n".join("• {}: {} - {}".format(*meeting) for meeting in meetings)
             elif isinstance(data, dict) and len(data) > 1:
                 output = "• {}: {} - {}".format(
                     data["MTG_DAYS"],
-                    datetime.strptime(data["START_TIME"], "%H%M")
-                    .strftime("%I:%M %p")
-                    .lstrip("0"),
-                    datetime.strptime(data["END_TIME"], "%H%M")
-                    .strftime("%I:%M %p")
-                    .lstrip("0"),
+                    datetime.strptime(data["START_TIME"], "%H%M").strftime("%I:%M %p").lstrip("0"),
+                    datetime.strptime(data["END_TIME"], "%H%M").strftime("%I:%M %p").lstrip("0"),
                 )
         except KeyError:
             self.log.error("Missing schedule data for %s - %s", course_num, section_num)
@@ -190,11 +170,7 @@ class Schedules(commands.Cog):
         max_limit = 24
 
         # Common embed elements
-        course_titles = set(
-            section["TITLE"]
-            for section in sections
-            if "honors" not in section["TITLE"].lower()
-        )
+        course_titles = set(section["TITLE"] for section in sections if "honors" not in section["TITLE"].lower())
         header = "{} - {} ({})".format(
             Schedules.SEMESTER_CODES[semester],
             course,
@@ -230,9 +206,7 @@ class Schedules(commands.Cog):
 
     def setup_embed(self, embed: discord.Embed, course: str, section: dict) -> None:
         section_number = section["SECTION"]
-        instructor = (
-            section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else "[Unassigned]"
-        )
+        instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else "[Unassigned]"
         filled_seats = section["ENROLLED"]
         max_seats = section["CAPACITY"]
         class_type = section["INSTRUCTIONMETHOD"]
@@ -263,9 +237,7 @@ class Schedules(commands.Cog):
         - For example: 2017 fall"""
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not Schedules.LATEST_SEMESTER:
-            raise commands.BadArgument(
-                "Schedule data not available yet. Try again later."
-            )
+            raise commands.BadArgument("Schedule data not available yet. Try again later.")
 
         # Validate semester and course
         picked_course = course.upper()
@@ -281,27 +253,19 @@ class Schedules(commands.Cog):
             year = parsed_semester[:4]
             season = parsed_semester[4:]
             if season not in season_map:
-                raise commands.BadArgument(
-                    "Type the year and season of the semester (e.g. 2020 fall)."
-                )
+                raise commands.BadArgument("Type the year and season of the semester (e.g. 2020 fall).")
             parsed_semester = year + season_map[season]
             self.log.debug("Parsed semester code from user: '%s'", parsed_semester)
 
         # Default to latest if not specified
-        picked_semester = (
-            Schedules.LATEST_SEMESTER if not parsed_semester else parsed_semester
-        )
+        picked_semester = Schedules.LATEST_SEMESTER if not parsed_semester else parsed_semester
         if picked_semester not in Schedules.SEMESTER_CODES:
-            raise commands.BadArgument(
-                "Semester is not valid or data for this term is unavailable."
-            )
+            raise commands.BadArgument("Semester is not valid or data for this term is unavailable.")
 
         # Queue for data if it is not cached
         if picked_semester not in Schedules.QUEUED_CODES:
             Schedules.QUEUED_CODES.append(picked_semester)
-            info_message = await ctx.send(
-                f"{self.bot.icons['info']} Getting schedule data..."
-            )
+            info_message = await ctx.send(f"{self.bot.icons['info']} Getting schedule data...")
             await self.update_schedules()
             await info_message.delete()
         self.log.debug(
@@ -313,14 +277,10 @@ class Schedules(commands.Cog):
         # Validate sections for the course
         found_sections = self.get_course_sections(picked_course, picked_semester)
         if not found_sections:
-            raise commands.BadArgument(
-                "Course number is not valid or unavailable for this semester."
-            )
+            raise commands.BadArgument("Course number is not valid or unavailable for this semester.")
 
         # Setup course info embed(s)
-        schedule_embeds = self.get_schedule_embeds(
-            picked_course, picked_semester, found_sections
-        )
+        schedule_embeds = self.get_schedule_embeds(picked_course, picked_semester, found_sections)
         for embed in schedule_embeds:
             await ctx.send(embed=embed)
 

@@ -17,8 +17,7 @@ class PinguHelp(commands.HelpCommand):
     def get_description(self):
         """Returns a helpful tip for the user."""
         return (
-            "Type {0}{1} **[module]** or {0}{1} `[command]` for more info.\n"
-            "Module names are CaSe SeNsItIvE."
+            "Type {0}{1} **[module]** or {0}{1} `[command]` for more info.\n" "Module names are CaSe SeNsItIvE."
         ).format(self.clean_prefix, self.invoked_with)
 
     def get_command_signature(self, command):
@@ -27,9 +26,7 @@ class PinguHelp(commands.HelpCommand):
 
     # Display a list of available commands of each loaded cog
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(
-            title="Pingu Modules & Commands", colour=self.embed_colour
-        )
+        embed = discord.Embed(title="Pingu Modules & Commands", colour=self.embed_colour)
         embed.description = self.get_description()
 
         # mapping is a dictionary of cogs paired with its associated commands
@@ -42,13 +39,9 @@ class PinguHelp(commands.HelpCommand):
             # since they don't have a class docstring associated with them
             if cog and cog.description:
                 # Sort the commands in a module
-                filtered_commands = await self.filter_commands(
-                    available_commands, sort=True
-                )
+                filtered_commands = await self.filter_commands(available_commands, sort=True)
                 if filtered_commands:
-                    visible_commands = "`, `".join(
-                        command.name for command in filtered_commands
-                    )
+                    visible_commands = "`, `".join(command.name for command in filtered_commands)
                     desc = f"{cog.description}\n`{visible_commands}`"
                 else:
                     desc = f"{cog.description}"
@@ -62,9 +55,7 @@ class PinguHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog):
-        embed = discord.Embed(
-            title=f"{cog.qualified_name} Commands", colour=self.embed_colour
-        )
+        embed = discord.Embed(title=f"{cog.qualified_name} Commands", colour=self.embed_colour)
         if cog.description:
             embed.description = cog.description
 
@@ -96,10 +87,7 @@ class PinguHelp(commands.HelpCommand):
                 inline=False,
             )
 
-        usage_note = (
-            "Commands with **<...>** are required,\n"
-            "but the ones with **[...]** are optional"
-        )
+        usage_note = "Commands with **<...>** are required,\n" "but the ones with **[...]** are optional"
         embed.add_field(name="⠀", value=usage_note, inline=False)
         embed.set_footer(
             text=f"Requested by: {self.context.author}",
@@ -117,10 +105,7 @@ class PinguHelp(commands.HelpCommand):
             aliases = "`, `".join(alias for alias in command.aliases)
             embed.add_field(name="Aliases", value=f"`{aliases}`", inline=False)
 
-        usage_note = (
-            "Commands with **<...>** are required,\n"
-            "but the ones with **[...]** are optional"
-        )
+        usage_note = "Commands with **<...>** are required,\n" "but the ones with **[...]** are optional"
         embed.add_field(name="⠀", value=usage_note, inline=False)
         embed.set_footer(
             text=f"Requested by: {self.context.author}",

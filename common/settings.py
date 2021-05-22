@@ -10,9 +10,7 @@ load_dotenv()
 class Settings:
     __slots__ = ()
 
-    DEFAULT_ACTIVITY = discord.Activity(
-        type=discord.ActivityType.watching, name="Pingu in the City"
-    )
+    DEFAULT_ACTIVITY = discord.Activity(type=discord.ActivityType.watching, name="Pingu in the City")
     DEFAULT_DESCRIPTION = "noot noot"
     DEFAULT_PREFIX = "%"
     DEFAULT_STATUS = discord.Status.online
@@ -37,7 +35,9 @@ class Settings:
     POSTGRES_DATABASE = os.environ.get("POSTGRES_DB")
     POSTGRES_USER = os.environ.get("POSTGRES_USER")
     POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
-    POSTGRES_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}"
+    POSTGRES_URL = (
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}"
+    )
 
     TOKEN = os.environ.get("PINGU_TOKEN")
     VERSION = "0.0.5"

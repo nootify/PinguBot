@@ -101,10 +101,7 @@ class Pingu(commands.Bot):
         # Overridden global error handling
         error_icon = self.icons["fail"]
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(
-                f"{error_icon} Stop! You violated the law. "
-                f"Wait {error.retry_after:.02f} seconds."
-            )
+            await ctx.send(f"{error_icon} Stop! You violated the law. " f"Wait {error.retry_after:.02f} seconds.")
             return
         if isinstance(error, commands.DisabledCommand):
             await ctx.send(f"{error_icon} This command has been disabled for now.")
@@ -119,9 +116,7 @@ class Pingu(commands.Bot):
         if isinstance(error, commands.CommandError):
             self.log.error("%s: %s", type(error).__name__, error)
             await ctx.send("Something went wrong while processing this command.")
-            traceback.print_exception(
-                type(error), error, error.__traceback__, file=sys.stderr
-            )
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
 
 
