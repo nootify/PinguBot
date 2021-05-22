@@ -65,10 +65,13 @@ class ClownWeek(commands.Cog):
         """Prevent cache updates until the bot is ready"""
         await self.bot.wait_until_ready()
 
-    @commands.command(name="clown")
+    @commands.group(name="clown")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.guild)
     async def clown_info(self, ctx):
         """Check who the clown is in the server"""
+        if ctx.invoked_subcommand:
+            return
+
         if self.server_clowns is None:
             error_icon = self.bot.icons["fail"]
             await ctx.send(
@@ -100,7 +103,13 @@ class ClownWeek(commands.Cog):
                 f"{info_icon} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago)."
             )
 
-    @commands.command(name="nominate", aliases=["nom"])
+    @clown_info.command(name="nominate")
+    async def old_nominate(self, ctx: commands.Context):
+        await ctx.send(
+            f"{self.bot.icons['info']} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`"
+        )
+
+    @commands.command(name="nominate", aliases=["n"])
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week
 
