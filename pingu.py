@@ -10,17 +10,18 @@ import discord
 from discord.ext import commands
 from gino import Gino
 
+from common.settings import Icons, Settings
 from db import db
-from common.settings import Settings
 
 
 class Pingu(commands.Bot):
     """The main module that runs all of Pingu.
+
     Commands must be created in a cog and not in here.
     """
 
     def __init__(self, constants: Settings):
-        self.boot_time = datetime.now()
+        self.boot_time = datetime.utcnow()
 
         # This avoids naming conflicts with attributes in commands.Bot
         self.pingu_constants = constants
@@ -31,7 +32,6 @@ class Pingu(commands.Bot):
         self.pingu_version = self.pingu_constants.VERSION
 
         self.embed_colour = self.pingu_constants.EMBED_COLOUR
-        self.icons = self.pingu_constants.ICONS
 
         self.lavalink_host = self.pingu_constants.LAVALINK_HOST
         self.lavalink_port = self.pingu_constants.LAVALINK_PORT
@@ -75,7 +75,7 @@ class Pingu(commands.Bot):
 
     async def on_message(self, message):
         """Actions that are performed for any message that the bot can see."""
-        # Ignore messages from DMs
+        # Ignore DMs
         if not message.guild:
             return
 
@@ -83,45 +83,37 @@ class Pingu(commands.Bot):
         if not self.owner_id:
             await self.is_owner(message.author)
 
-        # Allow information to pass through
+        # Let the library parse the text
         await super().process_commands(message)
 
     async def on_command_error(self, ctx: commands.Context, error):
         """Errors that occur while processing or executing a command."""
-        # Errors that are unnecessary or are handled locally in each cog
+        # Errors that are unnecessary or handled locally
         ignored_errors = (
+            commands.BadArgument,
             commands.CheckFailure,
             commands.CommandNotFound,
+            commands.DisabledCommand,
             commands.MissingRequiredArgument,
             commands.TooManyArguments,
         )
         if isinstance(error, ignored_errors):
-            self.log.debug("%s: %s", type(error).__name__, error)
+            self.log.debug("Ignored %s: %s", type(error).__name__, error)
             return
-        # Overridden global error handling
-        error_icon = self.icons["fail"]
+
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"{error_icon} Stop! You violated the law. " f"Wait {error.retry_after:.02f} seconds.")
+            await ctx.send(f"{Icons.WARN} Don't spam commands. Try again after {error.retry_after:.1f} second(s).")
             return
-        if isinstance(error, commands.DisabledCommand):
-            await ctx.send(f"{error_icon} This command has been disabled for now.")
-            return
-        # Catch errors that have been specified to be local only
-        if hasattr(ctx, "local_error_only"):
-            return
-        if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{error_icon} {error}")
-            return
-        # Catch-all formatter for any CommandError related messages
+
+        # Catch unhandled exceptions from a command
         if isinstance(error, commands.CommandError):
             self.log.error("%s: %s", type(error).__name__, error)
-            await ctx.send("Something went wrong while processing this command.")
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            return
+            await ctx.send(f"{Icons.ERROR} Unexpected error occurred.")
 
 
-async def setup_db(db_url: str, db: Gino):
-    """Helper function to manage PostgreSQL database."""
+async def setup_db(db: Gino, db_url: str):
+    """Helper function to setup PostgreSQL db."""
     async with db.with_bind(db_url) as engine:
         await db.gino.create_all(bind=engine)
 
@@ -130,7 +122,6 @@ constants = Settings()
 
 
 if __name__ == "__main__":
-    # Logs events to the log file and the console
     LOG_FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
     TIMESTAMP_FORMAT = "%m-%d-%Y %I:%M:%S %p %Z"
     logFormat = logging.Formatter(fmt=LOG_FORMAT, datefmt=TIMESTAMP_FORMAT)
@@ -141,10 +132,9 @@ if __name__ == "__main__":
         stream=sys.stdout,
     )
 
-    # Setup environment vars
     if not constants.TOKEN:
-        raise ValueError("Token was not specified in $PINGU_TOKEN")
+        raise ValueError("Token is not set in $PINGU_TOKEN")
 
     pingu = Pingu(constants)
-    asyncio.get_event_loop().run_until_complete(setup_db(constants.POSTGRES_URL, db))
+    asyncio.get_event_loop().run_until_complete(setup_db(db, constants.POSTGRES_URL))
     pingu.run(constants.TOKEN)
