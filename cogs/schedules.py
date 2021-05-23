@@ -7,6 +7,8 @@ import aiohttp
 import discord
 from discord.ext import commands, tasks
 
+from common.settings import Icons
+
 
 class Schedules(commands.Cog):
     """Information about courses at NJIT"""
@@ -35,9 +37,9 @@ class Schedules(commands.Cog):
             if semester_code not in Schedules.LAST_UPDATE:
                 Schedules.LAST_UPDATE[semester_code] = datetime.fromtimestamp(0)
 
-            time_difference = datetime.now() - Schedules.LAST_UPDATE[semester_code]
+            time_difference = datetime.utcnow() - Schedules.LAST_UPDATE[semester_code]
             if time_difference >= timedelta(hours=1):
-                Schedules.LAST_UPDATE[semester_code] = datetime.now()
+                Schedules.LAST_UPDATE[semester_code] = datetime.utcnow()
                 await self.get_semester_data(semester_code)
             else:
                 self.log.info(
@@ -81,7 +83,7 @@ class Schedules(commands.Cog):
                                 for semester in semester_code_map
                             }
                             Schedules.SEMESTER_DATA[Schedules.LATEST_SEMESTER] = schedule_data
-                            Schedules.LAST_UPDATE[Schedules.LATEST_SEMESTER] = datetime.now()
+                            Schedules.LAST_UPDATE[Schedules.LATEST_SEMESTER] = datetime.utcnow()
                             self.log.info("Latest semester is '%s'", Schedules.LATEST_SEMESTER)
                             self.log.info("Found semester codes: %s", list(Schedules.SEMESTER_CODES.keys()))
                         else:
@@ -111,6 +113,7 @@ class Schedules(commands.Cog):
                 self.log.info("Updated '%s' with latest data", semester_code)
 
     def get_course_sections(self, course_number: str, semester_code: str) -> list:
+        """Helper function that gets the sections of a course."""
         # Course number must be capitalized
         prefix = course_number[:-3]
         semester_data = Schedules.SEMESTER_DATA[semester_code]
@@ -140,7 +143,7 @@ class Schedules(commands.Cog):
         return parsed_sections
 
     def get_meeting_times(self, data, course_num: str, section_num: str) -> str:
-        """Helper function that formats the meeting time hours of a section."""
+        """Helper function that formats the meeting times of a section."""
         output = "• N/A"
         # Format times to standard 12-hour instead of 24-hour
         try:
@@ -167,6 +170,7 @@ class Schedules(commands.Cog):
         return output
 
     def get_schedule_embeds(self, course: str, semester: str, sections: list) -> list:
+        """Helper function that allows courses with more than 24 sections to display properly."""
         max_limit = 24
 
         # Common embed elements
@@ -205,6 +209,7 @@ class Schedules(commands.Cog):
             return [schedule_embed, continued_embed]
 
     def setup_embed(self, embed: discord.Embed, course: str, section: dict) -> None:
+        """Helper function to format the schedule information embeds."""
         section_number = section["SECTION"]
         instructor = section["INSTRUCTOR"] if section["INSTRUCTOR"] != ", " else "[Unassigned]"
         filled_seats = section["ENROLLED"]
@@ -230,14 +235,15 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
-    async def get_course(self, ctx, course: str, *, semester: str = None):
+    async def course_info(self, ctx, course: str, *, semester: str = None):
         """Get details about a course at NJIT.
 
-        - A specific semester can be chosen with a year and a season.
-        - For example: 2017 fall"""
+        - A specific semester can be chosen with a year and season (e.g. 2017 fall).
+        """
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not Schedules.LATEST_SEMESTER:
-            raise commands.BadArgument("Schedule data not available yet. Try again later.")
+            await ctx.send(f"{Icons.WARN} Schedule data not available yet. Try again later.")
+            return
 
         # Validate semester and course
         picked_course = course.upper()
@@ -253,7 +259,7 @@ class Schedules(commands.Cog):
             year = parsed_semester[:4]
             season = parsed_semester[4:]
             if season not in season_map:
-                raise commands.BadArgument("Type the year and season of the semester (e.g. 2020 fall).")
+                raise commands.BadArgument("Type the year first and then the season (e.g. 2017 fall).")
             parsed_semester = year + season_map[season]
             self.log.debug("Parsed semester code from user: '%s'", parsed_semester)
 
@@ -265,7 +271,7 @@ class Schedules(commands.Cog):
         # Queue for data if it is not cached
         if picked_semester not in Schedules.QUEUED_CODES:
             Schedules.QUEUED_CODES.append(picked_semester)
-            info_message = await ctx.send(f"{self.bot.icons['info']} Getting schedule data...")
+            info_message = await ctx.send(f"{Icons.ALERT} Getting schedule data...")
             await self.update_schedules()
             await info_message.delete()
         self.log.debug(
@@ -284,11 +290,14 @@ class Schedules(commands.Cog):
         for embed in schedule_embeds:
             await ctx.send(embed=embed)
 
-    @get_course.error
-    async def get_course_error(self, ctx: commands.Context, error):
+    @course_info.error
+    async def course_error_handler(self, ctx: commands.Context, error):
         """Error checking the parameters of the get_course command."""
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(f"{self.bot.icons['fail']} No course number given.")
+            if error.param.name == "course":
+                await ctx.send(f"{Icons.ERROR} Missing course number.")
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(f"{Icons.ERROR} {error}")
 
 
 def setup(bot):
