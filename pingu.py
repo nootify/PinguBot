@@ -60,10 +60,11 @@ class Pingu(commands.Bot):
 
         # Load all of the modules
         for dirpath, dirnames, filenames in os.walk("./cogs"):
-            for file in filenames:
-                cog = file[:-3]  # Trim .py file extension
-                self.log.info("Loading %s module", cog)
-                self.load_extension(f"cogs.{cog}")
+            for filename in filenames:
+                if filename.endswith(".py"):
+                    cog_name = os.path.splitext(filename)[0]  # Trim file extension
+                    self.log.info("Loading %s module", cog_name)
+                    self.load_extension(f"cogs.{cog_name}")
 
     async def on_ready(self):
         """Runs when the bot is ready to receive commands.
