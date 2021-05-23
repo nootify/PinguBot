@@ -213,7 +213,7 @@ class ClownWeek(commands.Cog):
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
             raise commands.BadArgument("No one voted. Canceling nomination.")
 
-        nomination_percent = int(vote_reactions["✅"] / total_reactions) * 100
+        nomination_percent = round((vote_reactions["✅"] / total_reactions) * 100)
         nomination_threshold = 67
         if nomination_percent < nomination_threshold:
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
