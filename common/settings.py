@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 import discord
 from dotenv import load_dotenv
@@ -16,12 +17,6 @@ class Settings:
     DEFAULT_STATUS = discord.Status.online
 
     EMBED_COLOUR = discord.Colour.from_rgb(138, 181, 252)
-    ICONS = {
-        "audio": ":speaker:",
-        "fail": ":x:",
-        "info": ":information_source:",
-        "success": ":white_check_mark:",
-    }
 
     # Docker service name hosting the Lavalink instance
     LAVALINK_HOST = "audio"
@@ -41,3 +36,14 @@ class Settings:
 
     TOKEN = os.environ.get("PINGU_TOKEN")
     VERSION = "0.0.5"
+
+
+class Icons(Enum):
+    ALERT = ":information_source:"
+    ERROR = ":no_entry:"
+    HMM = ":eyes:"
+    SUCCESS = ":ballot_box_with_check:"
+    WARN = ":warning:"
+
+    def __str__(self):
+        return str(self.value)
