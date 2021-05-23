@@ -11,7 +11,7 @@ from common.settings import Icons
 
 
 class Schedules(commands.Cog):
-    """Information about courses at NJIT"""
+    """Schedule information for NJIT courses"""
 
     SCHEDULE_URL = "https://uisnetpr01.njit.edu/courseschedule/alltitlecourselist.aspx?term="
     SEMESTER_CODES = {}
@@ -301,5 +301,4 @@ class Schedules(commands.Cog):
 
 
 def setup(bot):
-    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Schedules(bot))

@@ -11,7 +11,7 @@ from common.settings import Icons
 
 
 class Misc(commands.Cog):
-    """Commands that don't fit in a specific category"""
+    """Commands not in a specific category"""
 
     def __init__(self, bot):
         self.bot = bot
@@ -149,5 +149,4 @@ class Misc(commands.Cog):
 
 
 def setup(bot):
-    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Misc(bot))

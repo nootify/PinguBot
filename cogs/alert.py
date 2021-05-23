@@ -1,4 +1,3 @@
-"""You already know what this does 👀"""
 import asyncio
 import logging
 from datetime import datetime, timedelta
@@ -9,8 +8,6 @@ from pytz import timezone
 
 
 class Alert(commands.Cog):
-    """12:34"""
-
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
@@ -28,7 +25,6 @@ class Alert(commands.Cog):
 
     @commands.command(name="1234", hidden=True)
     async def set_1234(self, ctx, guild_id: str = None, channel_id: str = None):
-        """Sets where to send 12:34"""
         # Temporary variable to compare with the cog level location
         preliminary_location = None
 
@@ -93,7 +89,6 @@ class Alert(commands.Cog):
 
     @commands.command(name="no1234", hidden=True)
     async def stop_1234(self, ctx):  # pylint: disable=unused-argument
-        """Stop 12:34 from running"""
         self.log.info("Manual override to stop 1234 received; stopping task")
         self.message_location = None
         self.sent_message = None
@@ -101,7 +96,6 @@ class Alert(commands.Cog):
 
     @tasks.loop()
     async def message_1234(self):
-        """Become the King of 12:34 in a channel; complains if admin abuse is detected"""
         # Python times, timezones, and daylight savings is hard
         utc = timezone("UTC")
         # Account for daylight savings ("US/Eastern" is EST only)
