@@ -12,7 +12,7 @@ from db.models import Clown
 
 
 class ClownWeek(commands.Cog):
-    """Stuff related to clown of the week"""
+    """Anything related to clown of the week"""
 
     NOMINATION_POLLS = {}
     GUILD_CLOWNS = None
@@ -51,12 +51,6 @@ class ClownWeek(commands.Cog):
         if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
             await event.player.destroy()
 
-    async def cog_check(self, ctx):
-        if ClownWeek.GUILD_CLOWNS is None:
-            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
-            return False
-        return True
-
     # def cog_unload(self):
     #     self.log.info("Disconnecting from all voice channels")
 
@@ -76,6 +70,10 @@ class ClownWeek(commands.Cog):
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
     async def clown_info(self, ctx):
         """Check who the clown is in the server"""
+        if ClownWeek.GUILD_CLOWNS is None:
+            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
+            return
+
         if ctx.invoked_subcommand:
             return
 
@@ -101,6 +99,7 @@ class ClownWeek(commands.Cog):
 
     @clown_info.command(name="nominate")
     async def old_nominate(self, ctx: commands.Context):
+        """Use the new nominate command."""
         await ctx.send(f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`")
 
     @commands.command(name="nominate", aliases=["nom"])
@@ -110,6 +109,10 @@ class ClownWeek(commands.Cog):
         - Make sure to put a reason or else the nomination will be cancelled
         - You can either ping someone or type a Discord username/nickname exactly without the @.
         """
+        if ClownWeek.GUILD_CLOWNS is None:
+            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
+            return
+
         if ctx.guild.id in ClownWeek.NOMINATION_POLLS and ClownWeek.NOMINATION_POLLS[ctx.guild.id]:
             raise commands.BadArgument("Only one nomination can happen in a server at a time.")
 
@@ -287,6 +290,10 @@ class ClownWeek(commands.Cog):
     async def prepare_clown(self, ctx: commands.Context):
         """Ensures all the conditions are good before connecting to voice"""
         # If no record exists in the database
+        if ClownWeek.GUILD_CLOWNS is None:
+            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
+            return
+
         if ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
             raise commands.BadArgument("No clown was nominated in this server.")
 
@@ -389,5 +396,4 @@ class ClownWeek(commands.Cog):
 
 
 def setup(bot):
-    """Adds this module in as a cog to Pingu."""
     bot.add_cog(ClownWeek(bot))
