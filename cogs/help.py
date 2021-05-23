@@ -20,7 +20,7 @@ class PinguHelp(commands.HelpCommand):
         return f"{command.qualified_name} {command.signature}"
 
     def get_footer(self):
-        return "Commands that have: <...> are needed • [...] are optional"
+        return "Commands that have: < ... > are needed • [ ... ] are optional"
 
     def get_help_text(self, command):
         if command.aliases and command.help:
