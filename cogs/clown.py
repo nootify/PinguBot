@@ -149,15 +149,20 @@ class ClownWeek(commands.Cog):
         nomination_prompt = await ctx.send(f"{nominator.mention} has {nomination_time} seconds to give a reason:")
 
         def confirm_message(msg):
-            return msg.author.id == nominator.id and msg.channel.id == ctx.message.channel.id
+            return (
+                msg.author.id == nominator.id
+                and msg.channel.id == ctx.message.channel.id
+                and not msg.content.startswith(ctx.prefix)
+            )
 
         try:
             nomination_reason = await self.bot.wait_for("message", timeout=nomination_time, check=confirm_message)
-            await nomination_prompt.delete()
         except asyncio.TimeoutError:
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
             await nomination_prompt.delete()
             raise commands.BadArgument("No reason given. Canceling nomination.")
+        else:
+            await nomination_prompt.delete()
 
         def create_poll(reason: discord.Message, delay: int) -> discord.Embed:
             """A template to create the nomination poll"""
@@ -209,11 +214,11 @@ class ClownWeek(commands.Cog):
             raise commands.BadArgument("No one voted. Canceling nomination.")
 
         nomination_percent = int(vote_reactions["✅"] / total_reactions) * 100
-        nomination_threshold = 50
+        nomination_threshold = 67
         if nomination_percent < nomination_threshold:
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
             raise commands.BadArgument(
-                f"Nomination did not get enough support ({100 - nomination_percent}% voted against)."
+                f"Nomination needs at least {nomination_threshold}% approval (currently {nomination_percent}%)."
             )
 
         # Change the clown because enough votes were in favor of the nomination
