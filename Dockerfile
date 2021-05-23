@@ -84,6 +84,7 @@ USER pingu:pingu
 
 # `production` image used for runtime
 FROM python-base as production
+ENV JISHAKU_HIDE=1
 COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
 COPY --chown=pingu:pingu . /pingubot/
 WORKDIR /pingubot
