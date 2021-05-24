@@ -8,7 +8,7 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 
-from common.settings import Icons, Settings
+from common.util import Icons, Settings
 from db import db
 
 

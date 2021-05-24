@@ -7,7 +7,7 @@ import humanize
 import psutil
 from discord.ext import commands
 
-from common.settings import Icons
+from common.util import Icons
 
 
 class Misc(commands.Cog):

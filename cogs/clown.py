@@ -6,7 +6,7 @@ import discord
 import wavelink
 from discord.ext import commands
 
-from common.settings import Icons
+from common.util import Icons
 from db.models import Clown
 
 

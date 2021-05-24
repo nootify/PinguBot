@@ -3,7 +3,7 @@ from difflib import get_close_matches
 import discord
 from discord.ext import commands
 
-from common.settings import Icons
+from common.util import Icons
 
 
 class PinguHelp(commands.HelpCommand):
