@@ -104,7 +104,6 @@ class Pingu(commands.Bot):
         # Errors that are unnecessary or handled locally
         ignored_errors = (
             commands.BadArgument,
-            commands.CheckFailure,
             commands.CommandNotFound,
             commands.DisabledCommand,
             commands.MissingRequiredArgument,
@@ -116,6 +115,11 @@ class Pingu(commands.Bot):
 
         if isinstance(error, commands.CommandOnCooldown):
             await ctx.send(f"{Icons.WARN} Don't spam commands. Try again after {error.retry_after:.1f} second(s).")
+            return
+
+        if isinstance(error, commands.CheckFailure):
+            self.log.debug("CheckFail: %s", error)
+            await ctx.send(f"{Icons.ERROR} Sorry, but you don't have permission to do that.")
             return
 
         # Catch unhandled exceptions from a command
