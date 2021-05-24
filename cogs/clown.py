@@ -102,6 +102,7 @@ class ClownWeek(commands.Cog):
         await ctx.send(f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`")
 
     @commands.command(name="nominate", aliases=["nom"])
+    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week
 
@@ -385,15 +386,15 @@ class ClownWeek(commands.Cog):
                 self.log.debug("Potential spam connect by '%s' in '%s'", member.id, member.guild.id)
                 return
 
-            # Update join time of clown
-            async with self.bot.db.with_bind(self.bot.db_url):
-                new_clown = clown_data
-                await new_clown.update(join_time=datetime.utcnow()).apply()
-            await self.update_cache()
-
             # Play the audio
             player = self.bot.wavelink.get_player(member.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
             if not player.is_connected and await self.can_connect(after.channel):
+                # Only update the join time when it can connect and play
+                async with self.bot.db.with_bind(self.bot.db_url):
+                    new_clown = clown_data
+                    await new_clown.update(join_time=datetime.utcnow()).apply()
+                await self.update_cache()
+
                 tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
                 await player.connect(after.channel.id)
                 await player.play(tracks[0])
