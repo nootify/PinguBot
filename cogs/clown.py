@@ -4,9 +4,8 @@ from datetime import date, datetime, timedelta
 
 import discord
 import wavelink
-from discord.ext import commands, tasks
+from discord.ext import commands
 
-from db import db
 from common.settings import Icons
 from db.models import Clown
 
@@ -21,50 +20,50 @@ class ClownWeek(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
-        self.update_cache.start()
+        self.bot.loop.create_task(self.update_cache())
 
-        # Avoid overwriting the wavelink client on cog reload
+        # Avoids overwriting the wavelink client on cog reload
         if not hasattr(bot, "wavelink"):
             self.bot.wavelink = wavelink.Client(bot=self.bot)
 
-        self.bot.loop.create_task(self.start_nodes())
+        self.bot.loop.create_task(self.start_node())
 
-    async def start_nodes(self):
-        """Establish connection to the Lavalink server"""
+    async def start_node(self):
+        """Start a wavelink node"""
         await self.bot.wait_until_ready()
-
-        node = self.bot.wavelink.get_node(ClownWeek.WAVELINK_NODE_NAME)
-        if not node:
-            node = await self.bot.wavelink.initiate_node(
-                host=self.bot.lavalink_host,
-                port=self.bot.lavalink_port,
-                rest_uri=f"http://{self.bot.lavalink_host}:{self.bot.lavalink_port}",
-                password=self.bot.lavalink_password,
-                identifier=ClownWeek.WAVELINK_NODE_NAME,
-                region=self.bot.lavalink_region,
-            )
+        node = await self.bot.wavelink.initiate_node(
+            host=self.bot.lavalink_host,
+            port=self.bot.lavalink_port,
+            rest_uri=f"http://{self.bot.lavalink_host}:{self.bot.lavalink_port}",
+            password=self.bot.lavalink_password,
+            identifier=ClownWeek.WAVELINK_NODE_NAME,
+            region=self.bot.lavalink_region,
+        )
         node.set_hook(self.on_event_hook)
 
+    async def destroy_node(self):
+        """Gracefully disconnect from voice channels on cog reload"""
+        node = self.bot.wavelink.get_node(ClownWeek.WAVELINK_NODE_NAME)
+        # players = tuple(node.players.values())  # Avoids dict resize issue
+        # for player in players:
+        #     await player.destroy()
+        await node.destroy(force=True)
+
     async def on_event_hook(self, event):
-        """Catch events from a Wavelink node"""
-        # Disconnect Pingu when the audio finishes playing or an error occurs
+        """Catch events from a wavelink node"""
         if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
             await event.player.destroy()
 
-    # def cog_unload(self):
-    #     self.log.info("Disconnecting from all voice channels")
+    def cog_unload(self):
+        self.bot.loop.create_task(self.destroy_node())
+        self.log.info("Disconnecting from all voice channels")
 
-    @tasks.loop(count=1)
     async def update_cache(self):
-        """Updates the in-memory cache of the clown data"""
-        async with db.with_bind(self.bot.postgres_url):
+        """Update the in-memory cache of the clown data"""
+        await self.bot.wait_until_ready()
+        async with self.bot.db.with_bind(self.bot.db_url):
             ClownWeek.GUILD_CLOWNS = await Clown.query.gino.all()
         self.log.info("Updated cache")
-
-    @update_cache.before_loop
-    async def wait_for_bot(self):
-        """Prevent cache updates until the bot is ready"""
-        await self.bot.wait_until_ready()
 
     @commands.group(name="whoisclown", aliases=["clown"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
@@ -222,7 +221,7 @@ class ClownWeek(commands.Cog):
             )
 
         # Change the clown because enough votes were in favor of the nomination
-        async with db.with_bind(self.bot.postgres_url) as engine:
+        async with self.bot.db.with_bind(self.bot.db_url) as engine:
             if clown_data is None:
                 new_clown = Clown(
                     guild_id=ctx.guild.id,
@@ -239,7 +238,7 @@ class ClownWeek(commands.Cog):
                     nomination_date=datetime.utcnow(),
                     join_time=datetime.utcfromtimestamp(0),
                 ).apply()
-        self.update_cache.start()
+        await self.update_cache()
 
         # Display who the new clown is
         await ctx.send(f"{Icons.ALERT} The clown is now `{user}`.")
@@ -387,10 +386,10 @@ class ClownWeek(commands.Cog):
                 return
 
             # Update join time of clown
-            async with db.with_bind(self.bot.postgres_url):
+            async with self.bot.db.with_bind(self.bot.db_url):
                 new_clown = clown_data
                 await new_clown.update(join_time=datetime.utcnow()).apply()
-            self.update_cache.start()
+            await self.update_cache()
 
             # Play the audio
             player = self.bot.wavelink.get_player(member.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
