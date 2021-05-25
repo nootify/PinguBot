@@ -67,7 +67,7 @@ class Pingu(commands.Bot):
 
         # Load all of the cogs
         for dirpath, dirnames, filenames in os.walk("./cogs"):
-            for filename in filenames:
+            for filename in sorted(filenames):
                 if filename.endswith(".py"):
                     cog_name = os.path.splitext(filename)[0]  # Trim file extension
                     self.log.info("Loading %s cog", cog_name)
