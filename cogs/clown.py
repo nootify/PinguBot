@@ -461,7 +461,10 @@ class ClownWeek(commands.Cog):
         if before.channel and not after.channel:
             if player.is_connected:
                 await player.set_pause(True)
-                ClownWeek.IDLE_PLAYERS[member.guild.id] = self.bot.loop.create_task(self.disconnect_idle_player(player))
+                if member.guild.id not in ClownWeek.IDLE_PLAYERS:
+                    ClownWeek.IDLE_PLAYERS[member.guild.id] = self.bot.loop.create_task(
+                        self.disconnect_idle_player(player)
+                    )
 
 
 def setup(bot):
