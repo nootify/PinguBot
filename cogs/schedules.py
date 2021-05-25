@@ -29,8 +29,16 @@ class Schedules(commands.Cog):
         self.refresh_cache.cancel()
         self.log.info("Stopped background task and cleared cached data")
 
-    async def get_schedule(self):
-        """Retrieve schedule data from the queue"""
+    @tasks.loop(hours=24)
+    async def refresh_cache(self):
+        await self.get_semester_data()
+
+    @refresh_cache.before_loop
+    async def wait_for_bot(self):
+        await self.bot.wait_until_ready()
+
+    async def get_queued_schedule(self):
+        """Helper function to get schedule data from the queue"""
         semester_code = await Schedules.QUEUED_CODES.get()
         if semester_code not in Schedules.LAST_UPDATE:
             Schedules.LAST_UPDATE[semester_code] = datetime.fromtimestamp(0)
@@ -45,14 +53,6 @@ class Schedules(commands.Cog):
                 semester_code,
                 int(time_difference.total_seconds()),
             )
-
-    @tasks.loop(hours=24)
-    async def refresh_cache(self):
-        await self.get_semester_data()
-
-    @refresh_cache.before_loop
-    async def wait_for_bot(self):
-        await self.bot.wait_until_ready()
 
     async def get_semester_data(self, semester_code: str = None) -> None:
         """Helper function used to update the in-memory cache.
@@ -113,7 +113,7 @@ class Schedules(commands.Cog):
     async def get_course_sections(self, course_number: str, semester_code: str) -> list:
         """Helper function that gets the sections of a course."""
         await Schedules.QUEUED_CODES.put(semester_code)
-        await self.get_schedule()
+        await self.get_queued_schedule()
 
         # Course number must be capitalized
         prefix = course_number[:-3]
