@@ -6,6 +6,7 @@ import discord
 import wavelink
 from discord.ext import commands
 
+from common.exception import MissingClown, MissingData, MissingVoicePermissions
 from common.util import Icons
 from db.models import Clown
 
@@ -15,6 +16,7 @@ class ClownWeek(commands.Cog):
 
     NOMINATION_POLLS = {}
     GUILD_CLOWNS = None
+    IDLE_PLAYERS = {}
     WAVELINK_NODE_NAME = "CLOWN"
 
     def __init__(self, bot):
@@ -27,6 +29,10 @@ class ClownWeek(commands.Cog):
             self.bot.wavelink = wavelink.Client(bot=self.bot)
 
         self.bot.loop.create_task(self.start_node())
+
+    def cog_unload(self):
+        self.bot.loop.create_task(self.destroy_node())
+        self.log.info("Disconnecting from all voice channels")
 
     async def start_node(self):
         """Start a wavelink node"""
@@ -54,10 +60,6 @@ class ClownWeek(commands.Cog):
         if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
             await event.player.destroy()
 
-    def cog_unload(self):
-        self.bot.loop.create_task(self.destroy_node())
-        self.log.info("Disconnecting from all voice channels")
-
     async def update_cache(self):
         """Update the in-memory cache of the clown data"""
         await self.bot.wait_until_ready()
@@ -65,34 +67,84 @@ class ClownWeek(commands.Cog):
             ClownWeek.GUILD_CLOWNS = await Clown.query.gino.all()
         self.log.info("Updated cache")
 
+    def clown_cache_exists():
+        def predicate(ctx: commands.Context):
+            if ClownWeek.GUILD_CLOWNS is None:
+                raise MissingData("Clown data not available yet. Try again later.")
+            return True
+
+        return commands.check(predicate)
+
+    def clown_exists():
+        def predicate(ctx: commands.Context):
+            if ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
+                raise MissingClown("No clown has been nominated.")
+            return True
+
+        return commands.check(predicate)
+
+    def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
+        """Custom voice channel permission checker.
+
+        Note:
+        - @commands.bot_has_guild_permissions(...) only checks if the bot has this
+        permission in one of the roles it has in the guild
+        - @commands.bot_has_permissions(...) can only check the permissions of the
+        text channel it processed the command from, but not the actual voice channel.
+        - Wavelink does not check for permissions before connecting, so errors are
+        silently eaten.
+        """
+        voice_permissions = channel.permissions_for(channel.guild.me)
+        if voice_permissions.connect and voice_permissions.speak:
+            return True
+        return False
+
+    def check_clown_voice_state(self, member: discord.Member, channel: discord.VoiceChannel) -> bool:
+        # Skip if afk channel
+        if channel and member.guild.afk_channel and channel.id == member.guild.afk_channel.id:
+            return False
+        # Skip if data is not ready yet
+        if ClownWeek.GUILD_CLOWNS is None:
+            self.log.debug("Data did not load yet.")
+            return False
+        # Skip if the guild id is not in the records
+        if member.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
+            self.log.debug("Guild does not exist in the database records")
+            return False
+        # Skip if the user id does not match the clown id
+        clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == member.guild.id)
+        if member.id != clown_data.clown_id:
+            self.log.debug("User does not match clown id")
+            return False
+        return True
+
+    async def disconnect_idle_player(self, player: wavelink.Player):
+        await asyncio.sleep(600)
+        await player.disconnect()
+
     @commands.group(name="whoisclown", aliases=["clown"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
+    @commands.check_any(clown_cache_exists(), clown_exists())
     async def clown_info(self, ctx: commands.Context):
         """Check who the clown is in the server"""
-        if ClownWeek.GUILD_CLOWNS is None:
-            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
-            return
-
         if ctx.invoked_subcommand:
             return
 
-        guild_exists = ctx.guild.id in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
-        if not guild_exists:
-            await ctx.send(f"{Icons.ALERT} The clown is no one.")
-            return
-
-        # MemberConverter requires a string value
-        guild_clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
+        # MemberConverter needs a string value, not an int
+        clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
         try:
-            server_clown = await commands.MemberConverter().convert(ctx, str(guild_clown_data.clown_id))
+            server_clown = await commands.MemberConverter().convert(ctx, str(clown_data.clown_id))
         except commands.BadArgument:
-            raise commands.BadArgument("The clown is no longer in the server.")
+            raise MissingClown("The clown is no longer in the server.")
         else:
-            time_spent = date.today() - guild_clown_data.nomination_date
+            time_spent = date.today() - clown_data.nomination_date
             await ctx.send(f"{Icons.ALERT} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago).")
 
     @clown_info.error
     async def clown_info_error_handler(self, ctx: commands.Context, error):
+        if isinstance(error, (MissingClown, MissingData)):
+            await ctx.send(f"{Icons.WARN} {error}")
+            return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{Icons.ERROR} {error}")
 
@@ -103,16 +155,13 @@ class ClownWeek(commands.Cog):
 
     @commands.command(name="nominate", aliases=["nom"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
+    @clown_cache_exists()
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week
 
         - Make sure to put a reason or else the nomination will be cancelled
         - You can either ping someone or type a Discord username/nickname exactly without the @.
         """
-        if ClownWeek.GUILD_CLOWNS is None:
-            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.")
-            return
-
         if ctx.guild.id in ClownWeek.NOMINATION_POLLS and ClownWeek.NOMINATION_POLLS[ctx.guild.id]:
             raise commands.BadArgument("Only one nomination can happen in a server at a time.")
 
@@ -128,9 +177,9 @@ class ClownWeek(commands.Cog):
             (clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id),
             None,
         )
-        if clown_data is not None:
+        if clown_data:
             if user.id == clown_data.previous_clown_id:
-                raise commands.BadArgument("User was already clown of the week. Nominate someone else.")
+                raise commands.BadArgument(f"`{user}` was already clown of the week. Nominate someone else.")
 
             current_clown = ctx.author.id == clown_data.clown_id
             time_spent = date.today() - clown_data.nomination_date
@@ -196,7 +245,7 @@ class ClownWeek(commands.Cog):
             )
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
-            raise commands.BadArgument("The poll was deleted or Unable to retrieve votes. Canceling nomination.")
+            raise commands.BadArgument("Unable to retrieve votes. Canceling nomination.")
 
         # Check the results of the poll
         poll_reactions = ClownWeek.NOMINATION_POLLS[ctx.guild.id].reactions
@@ -256,20 +305,18 @@ class ClownWeek(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "user":
                 await ctx.send(f"{Icons.ERROR} Missing user to nominate.")
+            return
+        if isinstance(error, MissingData):
+            await ctx.send(f"{Icons.WARN} {error}")
+            return
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{Icons.ERROR} {error}")
 
     @commands.command(name="honk", hidden=True)
     @commands.is_owner()
+    @commands.check_any(clown_cache_exists(), clown_exists())
     async def honk(self, ctx: commands.Context):
         """Honk at the clown in a voice channel"""
-        if ClownWeek.GUILD_CLOWNS is None:
-            await ctx.send(f"{Icons.WARN} Clown data not available yet. Try again later.", delete_after=3)
-            return
-
-        if ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
-            raise commands.BadArgument("No clown was nominated in this server.")
-
         clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
         time_spent = date.today() - clown_data.nomination_date
         if time_spent >= timedelta(days=7):
@@ -288,8 +335,15 @@ class ClownWeek(commands.Cog):
             raise commands.BadArgument("The clown is not in any voice channel(s).")
         if player.is_connected or player.is_playing:
             raise commands.BadArgument("Already playing in a voice channel.")
-        if not await self.can_connect(found_channel, ctx=ctx):
-            return
+        if not self.check_voice_permissions(found_channel):
+            bot_permissions = found_channel.permissions_for(found_channel.guild.me)
+            required_permissions = {
+                "connect": bot_permissions.connect,
+                "speak": bot_permissions.speak,
+                "view channel": bot_permissions.view_channel,
+            }
+            missing_perms = "`, `".join(perm for perm, val in required_permissions.items() if not val)
+            raise MissingVoicePermissions(f"I'm missing `{missing_perms}` permission(s) for the voice channel.")
 
         tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
         await player.connect(channel.id)
@@ -298,6 +352,10 @@ class ClownWeek(commands.Cog):
     @honk.error
     async def honk_error_handler(self, ctx: commands.Context, error):
         """Local error handler for the honk command"""
+        if isinstance(error, (MissingClown, MissingData, MissingVoicePermissions)):
+            await ctx.send(f"{Icons.WARN} {error}", delete_after=3)
+            return
+
         if isinstance(error, commands.BadArgument):
             await ctx.send(f"{Icons.ERROR} {error}", delete_after=3)
 
@@ -310,49 +368,7 @@ class ClownWeek(commands.Cog):
             await player.destroy()
             await ctx.send(f"{Icons.ALERT} Disconnected from voice channel.", delete_after=3)
             return
-        await ctx.send(f"{Icons.WARN} Not connected to a voice channel.", delete_after=3)
-
-    async def can_connect(self, voice: discord.VoiceChannel, ctx: commands.Context = None) -> bool:
-        """Custom voice channel permission checker that was implemented because...
-        1. @commands.bot_has_guild_permissions(...) decorator only checks if the bot has
-            this permission in one of the roles it has in the SERVER, and the
-        2. @commands.bot_has_permissions(...) decorator checks the permissions in the
-            current TEXT channel, but not the actual voice channel.
-        3. Wavelink does not check for permissions before connecting, so no errors can
-           be emitted.
-        """
-        self_permissions = voice.permissions_for(voice.guild.me)
-        if self_permissions.connect and self_permissions.speak:
-            return True
-
-        if ctx:
-            required_perms = {
-                "connect": self_permissions.connect,
-                "speak": self_permissions.speak,
-                "view channel": self_permissions.view_channel,
-            }
-            missing_perms = "`, `".join(perm for perm, val in required_perms.items() if not val)
-            await ctx.send(f"{Icons.WARN} I'm missing `{missing_perms}` permission(s) for the voice channel.")
-        return False
-
-    async def clown_check(self, member: discord.Member, channel: discord.VoiceChannel) -> bool:
-        # Skip if it is the afk channel
-        if channel and member.guild.afk_channel and channel.id == member.guild.afk_channel.id:
-            return False
-        # Skip if the data is not ready yet
-        if ClownWeek.GUILD_CLOWNS is None:
-            self.log.debug("Data did not load yet.")
-            return False
-        # Skip if the server id does not exist in the records
-        if member.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
-            self.log.debug("Guild does not exist in the database records")
-            return False
-        # Skip if the clown id does not match records
-        clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == member.guild.id)
-        if member.id != clown_data.clown_id:
-            self.log.debug("User does not match clown id")
-            return False
-        return True
+        await ctx.send(f"{Icons.WARN} No voice channel found to disconnect from.", delete_after=3)
 
     @commands.Cog.listener()
     async def on_voice_state_update(
@@ -365,22 +381,26 @@ class ClownWeek(commands.Cog):
         channel in the server.
 
         It will ignore rapid connects and disconnects from the clown, and will only reconnect
-        when the audio playing fully finishes and Pingu disconnects from the voice channel.
+        after a set amount of time.
         """
-        if member.bot or not await self.clown_check(member, after.channel):
+        if member.bot or not self.check_clown_voice_state(member, after.channel):
             return
 
         player = self.bot.wavelink.get_player(member.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
 
-        # Clown connects to voice channel from disconnected state
+        # Clown connects to voice from disconnected state
         if not before.channel and after.channel:
             is_active = player and player.is_connected and player.channel_id == after.channel.id
             is_clown_deaf = member.voice.self_deaf or member.voice.deaf
-            if is_active and is_clown_deaf:
-                await player.set_pause(True)
-                return
-            if is_active and not is_clown_deaf:
-                await player.set_pause(False)
+            if is_active:
+                if member.guild.id in ClownWeek.IDLE_PLAYERS:
+                    disconnect_player_task = ClownWeek.IDLE_PLAYERS.pop(member.guild.id)
+                    disconnect_player_task.cancel()
+
+                if is_clown_deaf:
+                    await player.set_pause(True)
+                else:
+                    await player.set_pause(False)
                 return
 
             clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == member.guild.id)
@@ -405,7 +425,11 @@ class ClownWeek(commands.Cog):
                 return
 
             # Play the audio
-            if not player.is_connected and len(after.channel.members) >= 3 and await self.can_connect(after.channel):
+            if (
+                not player.is_connected
+                and len(after.channel.members) >= 3
+                and self.check_voice_permissions(after.channel)
+            ):
                 # Only update the join time when it can connect and play
                 async with self.bot.db.with_bind(self.bot.db_url):
                     new_clown = clown_data
@@ -415,11 +439,12 @@ class ClownWeek(commands.Cog):
 
                 tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
                 await player.play(tracks[0])
+                # Pause if clown joined while deaf
                 if member.voice.self_deaf or member.voice.deaf:
                     await player.set_pause(True)
             return
 
-        # Only play while the clown can hear the bot
+        # Play while the clown is not deafened
         if before.channel and after.channel:
             is_active = player and player.is_connected and player.channel_id == after.channel.id
             is_clown_deaf = member.voice.self_deaf or member.voice.deaf
@@ -431,9 +456,12 @@ class ClownWeek(commands.Cog):
                 await player.set_pause(False)
             return
 
+        # Pause if clown disconnects from voice
+        # Auto disconnect after 10 minutes
         if before.channel and not after.channel:
             if player.is_connected:
                 await player.set_pause(True)
+                ClownWeek.IDLE_PLAYERS[member.guild.id] = self.bot.loop.create_task(self.disconnect_idle_player(player))
 
 
 def setup(bot):
