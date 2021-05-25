@@ -1,6 +1,6 @@
+import asyncio
 import json
 import logging
-from collections import deque
 from datetime import datetime, timedelta
 
 import aiohttp
@@ -18,7 +18,7 @@ class Schedules(commands.Cog):
     SEMESTER_DATA = {}
     LATEST_SEMESTER = None
     LAST_UPDATE = {}
-    QUEUED_CODES = deque()
+    QUEUED_CODES = asyncio.Queue()
 
     def __init__(self, bot):
         self.bot = bot
@@ -27,26 +27,24 @@ class Schedules(commands.Cog):
 
     def cog_unload(self):
         self.refresh_cache.cancel()
-        Schedules.SEMESTER_DATA = None
         self.log.info("Stopped background task and cleared cached data")
 
-    async def update_schedules(self):
-        """Retrieve schedule data from queued operations"""
-        while Schedules.QUEUED_CODES:
-            semester_code = Schedules.QUEUED_CODES.popleft()
-            if semester_code not in Schedules.LAST_UPDATE:
-                Schedules.LAST_UPDATE[semester_code] = datetime.fromtimestamp(0)
+    async def get_schedule(self):
+        """Retrieve schedule data from the queue"""
+        semester_code = await Schedules.QUEUED_CODES.get()
+        if semester_code not in Schedules.LAST_UPDATE:
+            Schedules.LAST_UPDATE[semester_code] = datetime.fromtimestamp(0)
 
-            time_difference = datetime.utcnow() - Schedules.LAST_UPDATE[semester_code]
-            if time_difference >= timedelta(hours=1):
-                Schedules.LAST_UPDATE[semester_code] = datetime.utcnow()
-                await self.get_semester_data(semester_code)
-            else:
-                self.log.info(
-                    "Not updating '%s' since it was updated %s second(s) ago",
-                    semester_code,
-                    int(time_difference.total_seconds()),
-                )
+        time_difference = datetime.utcnow() - Schedules.LAST_UPDATE[semester_code]
+        if time_difference >= timedelta(hours=1):
+            Schedules.LAST_UPDATE[semester_code] = datetime.utcnow()
+            await self.get_semester_data(semester_code)
+        else:
+            self.log.info(
+                "Not updating '%s' since it was updated %s second(s) ago",
+                semester_code,
+                int(time_difference.total_seconds()),
+            )
 
     @tasks.loop(hours=24)
     async def refresh_cache(self):
@@ -112,8 +110,11 @@ class Schedules(commands.Cog):
             else:
                 self.log.info("Updated '%s' with latest data", semester_code)
 
-    def get_course_sections(self, course_number: str, semester_code: str) -> list:
+    async def get_course_sections(self, course_number: str, semester_code: str) -> list:
         """Helper function that gets the sections of a course."""
+        await Schedules.QUEUED_CODES.put(semester_code)
+        await self.get_schedule()
+
         # Course number must be capitalized
         prefix = course_number[:-3]
         semester_data = Schedules.SEMESTER_DATA[semester_code]
@@ -268,12 +269,6 @@ class Schedules(commands.Cog):
         if picked_semester not in Schedules.SEMESTER_CODES:
             raise commands.BadArgument("Semester is not valid or data for this term is unavailable.")
 
-        # Queue for data if it is not cached
-        if picked_semester not in Schedules.QUEUED_CODES:
-            Schedules.QUEUED_CODES.append(picked_semester)
-            info_message = await ctx.send(f"{Icons.ALERT} Getting schedule data...")
-            await self.update_schedules()
-            await info_message.delete()
         self.log.debug(
             "User requested '%s' (%s)",
             picked_semester,
@@ -281,11 +276,14 @@ class Schedules(commands.Cog):
         )
 
         # Validate sections for the course
-        found_sections = self.get_course_sections(picked_course, picked_semester)
+        info_message = await ctx.send(f"{Icons.ALERT} Getting schedule data...")
+        found_sections = await self.get_course_sections(picked_course, picked_semester)
         if not found_sections:
+            await info_message.delete()
             raise commands.BadArgument("Course number is not valid or unavailable for this semester.")
 
         # Setup course info embed(s)
+        await info_message.delete()
         schedule_embeds = self.get_schedule_embeds(picked_course, picked_semester, found_sections)
         for embed in schedule_embeds:
             await ctx.send(embed=embed)
