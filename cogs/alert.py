@@ -163,25 +163,24 @@ class Alert(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message):
-        """Sense if someone with moderator powers deletes 12:34"""
+        """Check who is deleting the snipe message"""
         if self.sent_message and self.sent_message.id == message.id:
-            message_guild = message.guild
             message_deleter = None
-            if message_guild.id == 143909103951937536 or message_guild.id == 276571138455502848:
-                self_permissions = message.channel.permissions_for(message_guild.me)
-                if self_permissions.view_audit_log:
-                    async for entry in message_guild.audit_logs(limit=20, action=discord.AuditLogAction.message_delete):
-                        if entry.target == message_guild.me:
-                            message_deleter = entry.user
-                            break
+            bot_permissions = message.channel.permissions_for(message.guild.me)
+            if bot_permissions.view_audit_log:
+                async for entry in message.guild.audit_logs(limit=20, action=discord.AuditLogAction.message_delete):
+                    if entry.target == message.guild.me:
+                        message_deleter = entry.user
+                        break
 
             # Checking who deleted the message requires the Audit Log permission
             if not message_deleter:
-                self.sent_message = await message.channel.send("Stop deleting my messages >:(")
+                self.sent_message = await message.channel.send(":neutral_face: Someone keeps deleting my message")
             else:
                 self.sent_message = await message.channel.send(
-                    f"{message_deleter.mention} Stop deleting my messages >:("
+                    f"{message_deleter.mention} Stop deleting my message :confused:"
                 )
+            return
 
 
 def setup(bot):
