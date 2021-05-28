@@ -75,8 +75,8 @@ class Pingu(commands.Bot):
 
     async def setup_db(self):
         self.log.info("Setting up database tables")
-        async with self.db.with_bind(self.db_url) as engine:
-            await self.db.gino.create_all(bind=engine)
+        await self.db.set_bind(self.db_url)
+        await self.db.gino.create_all()
 
     async def on_ready(self):
         """Runs when the bot is ready to receive commands.
