@@ -73,6 +73,10 @@ class Pingu(commands.Bot):
                     self.log.info("Loading %s cog", cog_name)
                     self.load_extension(f"cogs.{cog_name}")
 
+    def create_embed(self, **kwargs):
+        embed_template = discord.Embed(colour=self.embed_colour, **kwargs)
+        return embed_template
+
     async def setup_db(self):
         self.log.info("Setting up database tables")
         await self.db.set_bind(self.db_url)
@@ -113,20 +117,26 @@ class Pingu(commands.Bot):
             self.log.debug("Ignored %s: %s", type(error).__name__, error)
             return
 
+        error_embed = self.create_embed()
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"{Icons.WARN} Don't spam commands. Try again after {error.retry_after:.1f} second(s).")
+            error_embed.description = (
+                f"{Icons.WARN} Don't spam commands. Try again after {error.retry_after:.1f} second(s)."
+            )
+            await ctx.send(embed=error_embed)
             return
 
         if isinstance(error, commands.CheckFailure):
             self.log.debug("CheckFail: %s", error)
-            await ctx.send(f"{Icons.ERROR} Sorry, but you don't have permission to do that.")
+            error_embed.description = f"{Icons.ERROR} Sorry, but you don't have permission to do that."
+            await ctx.send(embed=error_embed)
             return
 
         # Catch unhandled exceptions from a command
         if isinstance(error, commands.CommandError):
             self.log.error("%s: %s", type(error).__name__, error)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            await ctx.send(f"{Icons.ERROR} Unexpected error occurred.")
+            error_embed.description = f"{Icons.ERROR} Unexpected error occurred."
+            await ctx.send(embed=error_embed)
 
 
 if __name__ == "__main__":
