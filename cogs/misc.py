@@ -153,6 +153,7 @@ class Misc(commands.Cog):
     @commands.command(name="invite")
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.channel)
     async def invite_link(self, ctx: commands.Context):
+        """Show the invite link for PinguBot"""
         invite_link = (
             "https://discord.com/api/oauth2/authorize?client_id=391016254938546188&permissions=3525696&scope=bot"
         )
