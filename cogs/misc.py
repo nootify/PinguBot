@@ -80,7 +80,7 @@ class Misc(commands.Cog):
         total_uptime = f"**{days}** days, **{hrs}** hours,\n" + f"**{mins}** minutes, **{secs}** seconds"
 
         # Embed stats into the message
-        stats_embed = discord.Embed(title="", description="", colour=self.bot.embed_colour)
+        stats_embed = self.bot.create_embed()
         stats_embed.set_author(name="Pingu Status", icon_url=ctx.me.avatar_url)
         stats_embed.set_footer(
             text=f"{ping_icon} Ping: {bot_ping:.2f} ms • Running on Python {py_version} and Discord.py {dpy_version}"
@@ -135,17 +135,20 @@ class Misc(commands.Cog):
         - You can either ping someone or type a Discord username/server nickname exactly without the @
         """
         if not user:
-            await ctx.send(ctx.message.author.avatar_url)
+            await ctx.send(ctx.author.avatar_url)
         else:
             await ctx.send(user.avatar_url)
 
     @yoink.error
     async def yoink_error_handler(self, ctx: commands.Context, error):
+        error_embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
-            await ctx.send(f"{Icons.ERROR} No user with that Discord username or server nickname was found.")
+            error_embed.description = f"{Icons.ERROR} No one with that username or nickname was found."
+            await ctx.send(embed=error_embed)
             return
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{Icons.ERROR} {error}")
+            error_embed.description = f"{Icons.ERROR} {error}"
+            await ctx.send(embed=error_embed)
 
 
 def setup(bot):
