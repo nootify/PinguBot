@@ -118,7 +118,7 @@ class ClownWeek(commands.Cog):
         await player.disconnect()
 
     @commands.group(name="clown", invoke_without_command=True)
-    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     @clown_cache_exists()
     async def clown_info(self, ctx: commands.Context):
         """Check who the clown is in the server"""
@@ -168,7 +168,7 @@ class ClownWeek(commands.Cog):
         return poll_embed
 
     @commands.command(name="nominate", aliases=["nom"])
-    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     @clown_cache_exists()
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week

@@ -20,7 +20,7 @@ class Misc(commands.Cog):
         self.proc.cpu_percent()
 
     @commands.command(name="status", aliases=["about", "stats"])
-    @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
+    @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.channel)
     async def pingu_status(self, ctx):
         """Show some detailed info about Pingu"""
         # Embed header and footer
@@ -149,6 +149,15 @@ class Misc(commands.Cog):
         if isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
+
+    @commands.command(name="invite")
+    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.channel)
+    async def invite_link(self, ctx: commands.Context):
+        invite_link = (
+            "https://discord.com/api/oauth2/authorize?client_id=391016254938546188&permissions=3525696&scope=bot"
+        )
+        embed = self.bot.create_embed(description=f"Invite me by clicking [here]({invite_link})")
+        await ctx.send(embed=embed)
 
 
 def setup(bot):
