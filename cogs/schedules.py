@@ -182,9 +182,8 @@ class Schedules(commands.Cog):
             " / ".join(course_titles),
         )
         if len(sections) <= max_limit:
-            schedule_embed = discord.Embed(
+            schedule_embed = self.bot.create_embed(
                 title=header,
-                colour=self.bot.embed_colour,
                 timestamp=Schedules.LAST_UPDATE[semester],
             )
             schedule_embed.set_footer(text="Last updated")
@@ -193,15 +192,13 @@ class Schedules(commands.Cog):
 
             return [schedule_embed]
         else:
-            schedule_embed = discord.Embed(
+            schedule_embed = self.bot.create_embed(
                 title=header,
-                colour=self.bot.embed_colour,
             )
             for section in sections[:max_limit]:
                 self.setup_embed(schedule_embed, course, section)
 
-            continued_embed = discord.Embed(
-                colour=self.bot.embed_colour,
+            continued_embed = self.bot.create_embed(
                 timestamp=Schedules.LAST_UPDATE[semester],
             )
             continued_embed.set_footer(text="Last updated")
@@ -243,7 +240,8 @@ class Schedules(commands.Cog):
         """
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not Schedules.LATEST_SEMESTER:
-            await ctx.send(f"{Icons.WARN} Schedule data not available yet. Try again later.")
+            embed = self.bot.create_embed(description=f"{Icons.WARN} Schedule data not available yet. Try again later.")
+            await ctx.send(embed=embed)
             return
 
         # Validate semester and course
@@ -276,7 +274,8 @@ class Schedules(commands.Cog):
         )
 
         # Validate sections for the course
-        info_message = await ctx.send(f"{Icons.ALERT} Getting schedule data...")
+        info_embed = self.bot.create_embed(description=f"{Icons.ALERT} Getting schedule data...")
+        info_message = await ctx.send(embed=info_embed)
         found_sections = await self.get_course_sections(picked_course, picked_semester)
         if not found_sections:
             await info_message.delete()
@@ -290,12 +289,15 @@ class Schedules(commands.Cog):
 
     @course_info.error
     async def course_error_handler(self, ctx: commands.Context, error):
-        """Error checking the parameters of the get_course command."""
+        error_embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "course":
-                await ctx.send(f"{Icons.ERROR} Missing course number.")
+                error_embed.description = f"{Icons.ERROR} Missing course number."
+                await ctx.send(embed=error_embed)
+            return
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{Icons.ERROR} {error}")
+            error_embed.description = f"{Icons.ERROR} {error}"
+            await ctx.send(embed=error_embed)
 
 
 def setup(bot):
