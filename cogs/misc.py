@@ -7,7 +7,7 @@ import psutil
 from discord.ext import commands
 from humanize import naturalsize
 
-from common.util import Icons
+from common.utils import Icons
 
 
 class Misc(commands.Cog):

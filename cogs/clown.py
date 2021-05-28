@@ -7,7 +7,7 @@ import wavelink
 from discord.ext import commands
 
 from common.exception import MissingClown, MissingData, MissingVoicePermissions
-from common.util import Icons
+from common.utils import Icons
 from db.models import Clown
 
 

@@ -7,7 +7,7 @@ import aiohttp
 import discord
 from discord.ext import commands, tasks
 
-from common.util import Icons
+from common.utils import Icons
 
 
 class Schedules(commands.Cog):
