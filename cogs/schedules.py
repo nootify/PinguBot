@@ -237,9 +237,9 @@ class Schedules(commands.Cog):
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
     async def course_info(self, ctx, course: str, *, semester: str = None):
-        """Get details about a course at NJIT.
+        """Get details about a course at NJIT
 
-        - A specific semester can be chosen with a year and season (e.g. 2017 fall).
+        - You can pick a specific semester by putting a year and season (e.g. 2017 fall)
         """
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not Schedules.LATEST_SEMESTER:
