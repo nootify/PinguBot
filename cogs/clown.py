@@ -76,7 +76,7 @@ class ClownWeek(commands.Cog):
         return commands.check(predicate)
 
     def clown_exists(self, ctx: commands.Context):
-        return ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
+        return ctx.guild.id in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
 
     def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
         """Custom voice channel permission checker
@@ -134,7 +134,7 @@ class ClownWeek(commands.Cog):
         else:
             time_spent = date.today() - clown_data.nomination_date
             embed = self.bot.create_embed(
-                description=f"{Icons.ALERT} The clown is `{server_clown.mention}` (clowned {time_spent.days} day(s) ago)."
+                description=f"{Icons.ALERT} The clown is {server_clown.mention} (clowned {time_spent.days} days ago)."
             )
             await ctx.send(embed=embed)
 
@@ -159,7 +159,8 @@ class ClownWeek(commands.Cog):
 
     def create_poll_embed(self, ctx: commands.Context, user: discord.Member, reason: str, delay: int) -> discord.Embed:
         """A template to create the nomination poll"""
-        poll_embed = self.bot.create_embed(title=user.mention, description=reason)
+        poll_body_text = f"{user.mention} {reason}"
+        poll_embed = self.bot.create_embed(description=poll_body_text)
         poll_embed.set_author(name="Clown of the Week Nomination")
         poll_embed.set_thumbnail(url=user.avatar_url)
         poll_embed.set_footer(
@@ -233,14 +234,15 @@ class ClownWeek(commands.Cog):
         ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(
             embed=self.create_poll_embed(ctx, user, nominator_response.content, delay_poll)
         )
-        valid_emoji = ("❌", "✅")
+        valid_emoji = ("✅", "❌")
         for emoji in valid_emoji:
             await ClownWeek.NOMINATION_POLLS[ctx.guild.id].add_reaction(emoji)
         await sleep_until(delay_datetime)
 
         # Refresh message for reaction changes
         try:
-            await ctx.channel.fetch_message(ClownWeek.NOMINATION_POLLS[ctx.guild.id].id)
+            refresh = await ctx.channel.fetch_message(ClownWeek.NOMINATION_POLLS[ctx.guild.id].id)
+            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = refresh
         except discord.HTTPException:
             ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
             raise commands.BadArgument("Unable to retrieve votes. Canceling nomination.")
@@ -250,9 +252,9 @@ class ClownWeek(commands.Cog):
 
         total_votes = sum(reaction.count for reaction in poll_reactions if reaction.emoji in valid_emoji) - 2
         user_votes = {reaction.emoji: (reaction.count - 1) for reaction in poll_reactions}
-        self.log.info("Results: %s, Total: %s", user_votes, total_votes)
+        self.log.debug("Results: %s / Total: %s", user_votes, total_votes)
 
-        if total_votes < 0 or user_votes["❌"] < 0 or user_votes["✅"] < 0:
+        if total_votes < 0 or user_votes["✅"] < 0 or user_votes["❌"] < 0:
             ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
             embed = self.bot.create_embed(
                 description=f"{Icons.HMM} Someone manipulated the votes. Canceling nomination."
@@ -285,6 +287,7 @@ class ClownWeek(commands.Cog):
             await new_clown.update(
                 clown_id=user.id,
                 previous_clown_id=clown_data.clown_id,
+                nomination_date=self.bot.db.func.now(),
                 join_time=datetime.utcfromtimestamp(0),
             ).apply()
         await self.update_cache()
