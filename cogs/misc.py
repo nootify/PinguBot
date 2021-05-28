@@ -3,9 +3,9 @@ import platform
 from datetime import datetime
 
 import discord
-import humanize
 import psutil
 from discord.ext import commands
+from humanize import naturalsize
 
 from common.util import Icons
 
@@ -43,8 +43,8 @@ class Misc(commands.Cog):
         logical_cores = psutil.cpu_count()
         physical_cores = psutil.cpu_count(logical=False)
         sys_mem = psutil.virtual_memory()
-        sys_mem_total = humanize.naturalsize(sys_mem.total, binary=True)
-        # sys_mem_available = humanize.naturalsize(sys_mem.available)
+        sys_mem_total = naturalsize(sys_mem.total, binary=True)
+        # sys_mem_available = naturalsize(sys_mem.available)
 
         # Quick Overview
         total_guilds = len(self.bot.guilds)
@@ -57,9 +57,9 @@ class Misc(commands.Cog):
         with self.proc.oneshot():
             # Memory used by the bot in bytes
             mem = self.proc.memory_full_info()
-            all_mem_used = humanize.naturalsize(mem.rss, binary=True)  # Physical memory
-            # all_vmem_used = humanize.naturalsize(mem.vms) # Virtual memory
-            main_mem_used = humanize.naturalsize(mem.uss, binary=True)
+            all_mem_used = naturalsize(mem.rss, binary=True)  # Physical memory
+            # all_vmem_used = naturalsize(mem.vms) # Virtual memory
+            main_mem_used = naturalsize(mem.uss, binary=True)
 
             # Percentage calculations
             bot_cpu_percent = self.proc.cpu_percent()
@@ -132,7 +132,7 @@ class Misc(commands.Cog):
         """Steal a profile picture
 
         - Omit **[user]** to yoink your own picture
-        - You can either ping someone or type a Discord username/nickname exactly without the @.
+        - You can either ping someone or type a Discord username/server nickname exactly without the @
         """
         if not user:
             await ctx.send(ctx.message.author.avatar_url)
