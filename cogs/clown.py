@@ -140,7 +140,7 @@ class ClownWeek(commands.Cog):
         else:
             time_spent = date.today() - clown_data.nomination_date
             embed = self.bot.create_embed(
-                description=f"{Icons.ALERT} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago)."
+                description=f"{Icons.ALERT} The clown is `{server_clown.mention}` (clowned {time_spent.days} day(s) ago)."
             )
             await ctx.send(embed=embed)
 
