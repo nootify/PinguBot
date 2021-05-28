@@ -75,13 +75,8 @@ class ClownWeek(commands.Cog):
 
         return commands.check(predicate)
 
-    def clown_exists():
-        def predicate(ctx: commands.Context):
-            if ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS):
-                raise MissingClown("No clown has been nominated.")
-            return True
-
-        return commands.check(predicate)
+    def clown_exists(self, ctx: commands.Context):
+        return ctx.guild.id not in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
 
     def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
         """Custom voice channel permission checker
@@ -122,18 +117,17 @@ class ClownWeek(commands.Cog):
         await asyncio.sleep(600)
         await player.disconnect()
 
-    @commands.group(name="clown")
+    @commands.group(name="clown", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
     @clown_cache_exists()
-    @clown_exists()
     async def clown_info(self, ctx: commands.Context):
         """Check who the clown is in the server"""
-        if ctx.invoked_subcommand:
-            return
+        if not self.clown_exists(ctx):
+            raise MissingClown("No clown has been nominated.")
 
-        # MemberConverter needs a string value, not an int
         clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
         try:
+            # MemberConverter needs a string value
             server_clown = await commands.MemberConverter().convert(ctx, str(clown_data.clown_id))
         except commands.BadArgument:
             raise MissingClown("The clown is no longer in the server.")
@@ -325,9 +319,11 @@ class ClownWeek(commands.Cog):
     @commands.command(name="honk", hidden=True)
     @commands.is_owner()
     @clown_cache_exists()
-    @clown_exists()
     async def honk(self, ctx: commands.Context):
         """Honk at the clown in a voice channel"""
+        if not self.clown_exists(ctx):
+            raise MissingClown("No clown has been nominated.")
+
         clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
         time_spent = date.today() - clown_data.nomination_date
         if time_spent >= timedelta(days=7):
