@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 import discord
 import wavelink
 from discord.ext import commands
+from discord.utils import sleep_until
 
 from common.exception import MissingClown, MissingData, MissingVoicePermissions
 from common.utils import Icons
@@ -138,20 +139,39 @@ class ClownWeek(commands.Cog):
             raise MissingClown("The clown is no longer in the server.")
         else:
             time_spent = date.today() - clown_data.nomination_date
-            await ctx.send(f"{Icons.ALERT} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago).")
+            embed = self.bot.create_embed(
+                description=f"{Icons.ALERT} The clown is `{server_clown}` (clowned {time_spent.days} day(s) ago)."
+            )
+            await ctx.send(embed=embed)
 
     @clown_info.error
     async def clown_info_error_handler(self, ctx: commands.Context, error):
+        error_embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData)):
-            await ctx.send(f"{Icons.WARN} {error}")
+            error_embed.description = f"{Icons.WARN} {error}"
+            await ctx.send(embed=error_embed)
             return
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{Icons.ERROR} {error}")
+            error_embed.description = f"{Icons.ERROR} {error}"
+            await ctx.send(embed=error_embed)
 
     @clown_info.command(name="nominate")
     async def old_nominate(self, ctx: commands.Context):
         """Use the new nominate command"""
-        await ctx.send(f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`")
+        embed = self.bot.create_embed(
+            description=f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`"
+        )
+        await ctx.send(embed=embed)
+
+    def create_poll_embed(self, ctx: commands.Context, user: discord.Member, reason: str, delay: int) -> discord.Embed:
+        """A template to create the nomination poll"""
+        poll_embed = self.bot.create_embed(title=user.mention, description=reason)
+        poll_embed.set_author(name="Clown of the Week Nomination")
+        poll_embed.set_thumbnail(url=user.avatar_url)
+        poll_embed.set_footer(
+            text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.avatar_url
+        )
+        return poll_embed
 
     @commands.command(name="nominate", aliases=["nom"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
@@ -162,8 +182,8 @@ class ClownWeek(commands.Cog):
         - You can either ping someone or type a Discord username/nickname exactly without the @
         - Make sure to put a reason afterwards or else the nomination will be cancelled
         """
-        if ctx.guild.id in ClownWeek.NOMINATION_POLLS and ClownWeek.NOMINATION_POLLS[ctx.guild.id]:
-            raise commands.BadArgument("Only one nomination can happen in a server at a time.")
+        if ctx.guild.id in ClownWeek.NOMINATION_POLLS:
+            raise commands.BadArgument("Only one nomination can happen at a time in a server.")
 
         if user.bot:
             raise commands.BadArgument("Clown cannot be a bot.")
@@ -179,7 +199,7 @@ class ClownWeek(commands.Cog):
         )
         if clown_data:
             if user.id == clown_data.previous_clown_id:
-                raise commands.BadArgument(f"`{user}` was already clown of the week. Nominate someone else.")
+                raise commands.BadArgument(f"{user.mention} was already clown of the week. Nominate someone else.")
 
             current_clown = ctx.author.id == clown_data.clown_id
             time_spent = date.today() - clown_data.nomination_date
@@ -190,82 +210,69 @@ class ClownWeek(commands.Cog):
                 )
 
         # Set poll semaphore
-        ClownWeek.NOMINATION_POLLS[ctx.guild.id] = True
-
-        # Confirm the message received is indeed the user that sent it
-        nominator = ctx.message.author
+        nominator = ctx.author
         nomination_time = 30  # seconds
-        nomination_prompt = await ctx.send(f"{nominator.mention} has {nomination_time} seconds to give a reason:")
+        embed = self.bot.create_embed(description=f"{nominator.mention} has {nomination_time} seconds to give a reason")
+        ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(embed=embed)
 
         def confirm_message(msg):
+            """Check the response is from the person who started the nomination and the message is not a command"""
             return (
                 msg.author.id == nominator.id
-                and msg.channel.id == ctx.message.channel.id
+                and msg.channel.id == ctx.channel.id
                 and not msg.content.startswith(ctx.prefix)
             )
 
         try:
-            nomination_reason = await self.bot.wait_for("message", timeout=nomination_time, check=confirm_message)
+            nominator_response = await self.bot.wait_for("message", timeout=nomination_time, check=confirm_message)
         except asyncio.TimeoutError:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
-            await nomination_prompt.delete()
+            await ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id).delete()
             raise commands.BadArgument("No reason given. Canceling nomination.")
         else:
-            await nomination_prompt.delete()
+            await ClownWeek.NOMINATION_POLLS[ctx.guild.id].delete()
+        if len(nominator_response.content) > 1000:
+            ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
+            raise commands.BadArgument("Nomination reason is too long.")
 
-        def create_poll(reason: discord.Message, delay: int) -> discord.Embed:
-            """A template to create the nomination poll"""
-            poll_embed = discord.Embed(colour=self.bot.embed_colour)
-            poll_embed.set_author(name="Clown of the Week Nomination")
-            poll_embed.title = f"{user}"
-            poll_embed.set_thumbnail(url=user.avatar_url)
-            poll_embed.set_footer(
-                text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.avatar_url
-            )
-
-            # Cut off text that exceeds 1000 characters
-            max_embed_message_length = 1000
-            if len(reason.content) <= max_embed_message_length:
-                poll_embed.description = reason.content
-            else:
-                poll_embed.description = f"{reason.content[:max_embed_message_length]} ..."
-            return poll_embed
-
-        # Store the nomination message in the semaphore
-        poll_delay = 60  # seconds
-        ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(embed=create_poll(nomination_reason, poll_delay))
-        await ClownWeek.NOMINATION_POLLS[ctx.guild.id].add_reaction("\N{white heavy check mark}")
-        await ClownWeek.NOMINATION_POLLS[ctx.guild.id].add_reaction("\N{cross mark}")
-        await asyncio.sleep(poll_delay)
+        delay_poll = 60  # seconds
+        delay_datetime = datetime.utcnow() + timedelta(seconds=delay_poll)
+        ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(
+            embed=self.create_poll_embed(ctx, user, nominator_response.content, delay_poll)
+        )
+        valid_emoji = ("❌", "✅")
+        for emoji in valid_emoji:
+            await ClownWeek.NOMINATION_POLLS[ctx.guild.id].add_reaction(emoji)
+        await sleep_until(delay_datetime)
 
         # Refresh message for reaction changes
         try:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.message.channel.fetch_message(
-                ClownWeek.NOMINATION_POLLS[ctx.guild.id].id
-            )
+            await ctx.channel.fetch_message(ClownWeek.NOMINATION_POLLS[ctx.guild.id].id)
         except discord.HTTPException:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
+            ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
             raise commands.BadArgument("Unable to retrieve votes. Canceling nomination.")
 
         # Check the results of the poll
         poll_reactions = ClownWeek.NOMINATION_POLLS[ctx.guild.id].reactions
 
-        total_reactions = sum(reaction.count for reaction in poll_reactions if reaction.emoji in ("❌", "✅")) - 2
-        vote_reactions = {reaction.emoji: (reaction.count - 1) for reaction in poll_reactions}
-        self.log.info("Results: %s, Total: %s", vote_reactions, total_reactions)
+        total_votes = sum(reaction.count for reaction in poll_reactions if reaction.emoji in valid_emoji) - 2
+        user_votes = {reaction.emoji: (reaction.count - 1) for reaction in poll_reactions}
+        self.log.info("Results: %s, Total: %s", user_votes, total_votes)
 
-        if total_reactions < 0 or vote_reactions["❌"] < 0 or vote_reactions["✅"] < 0:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
-            await ctx.send(f"{Icons.HMM} Someone manipulated the votes. Canceling nomination.")
+        if total_votes < 0 or user_votes["❌"] < 0 or user_votes["✅"] < 0:
+            ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
+            embed = self.bot.create_embed(
+                description=f"{Icons.HMM} Someone manipulated the votes. Canceling nomination."
+            )
+            await ctx.send(embed=embed)
             return
-        elif total_reactions == 0:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
+        elif total_votes == 0:
+            ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
             raise commands.BadArgument("No one voted. Canceling nomination.")
 
-        nomination_percent = round((vote_reactions["✅"] / total_reactions) * 100)
+        nomination_percent = round((user_votes["✅"] / total_votes) * 100)
         nomination_threshold = 67
         if nomination_percent < nomination_threshold:
-            ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
+            ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
             raise commands.BadArgument(
                 f"Nomination needs at least {nomination_threshold}% approval (currently {nomination_percent}%)."
             )
@@ -289,26 +296,31 @@ class ClownWeek(commands.Cog):
         await self.update_cache()
 
         # Display who the new clown is
-        await ctx.send(f"{Icons.ALERT} The clown is now `{user}`.")
+        result_embed = self.bot.create_embed(description=f"{Icons.ALERT} The clown is now {user.mention}.")
+        await ctx.send(embed=result_embed)
 
         # Undo semaphore
-        ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
+        ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
 
     @nominate_clown.error
-    async def nominate_error_handler(self, ctx: commands.Context, error):
-        """Error check for missing arguments"""
+    async def nominate_clown_error_handler(self, ctx: commands.Context, error):
+        error_embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
-            await ctx.send(f"{Icons.ERROR} No user with that Discord username or server nickname was found.")
+            error_embed.description = f"{Icons.ERROR} No user with that Discord username or server nickname was found."
+            await ctx.send(embed=error_embed)
             return
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "user":
-                await ctx.send(f"{Icons.ERROR} Missing user to nominate.")
+                error_embed.description = f"{Icons.ERROR} Missing user to nominate."
+                await ctx.send(embed=error_embed)
             return
         if isinstance(error, MissingData):
-            await ctx.send(f"{Icons.WARN} {error}")
+            error_embed.description = f"{Icons.WARN} {error}"
+            await ctx.send(embed=error_embed)
             return
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{Icons.ERROR} {error}")
+            error_embed.description = f"{Icons.ERROR} {error}"
+            await ctx.send(embed=error_embed)
 
     @commands.command(name="honk", hidden=True)
     @commands.is_owner()
@@ -350,24 +362,30 @@ class ClownWeek(commands.Cog):
 
     @honk.error
     async def honk_error_handler(self, ctx: commands.Context, error):
-        """Local error handler for the honk command"""
+        error_embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData, MissingVoicePermissions)):
-            await ctx.send(f"{Icons.WARN} {error}", delete_after=3)
+            error_embed.description = f"{Icons.WARN} {error}"
+            await ctx.send(embed=error_embed, delete_after=3)
             return
 
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f"{Icons.ERROR} {error}", delete_after=3)
+            error_embed.description = f"{Icons.ERROR} {error}"
+            await ctx.send(embed=error_embed, delete_after=3)
 
     @commands.command(name="disconnect", aliases=["dc"], hidden=True)
     @commands.is_owner()
     async def disconnect(self, ctx: commands.Context):
         """Disconnect Pingu from a voice channel for debugging purposes"""
+        embed = self.bot.create_embed()
         player = self.bot.wavelink.get_player(ctx.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
         if player and player.is_connected:
             await player.destroy()
-            await ctx.send(f"{Icons.ALERT} Disconnected from voice channel.", delete_after=3)
+            embed.description = f"{Icons.ALERT} Disconnected from voice channel."
+            await ctx.send(embed=embed, delete_after=3)
             return
-        await ctx.send(f"{Icons.WARN} No voice channel found to disconnect from.", delete_after=3)
+
+        embed.description = f"{Icons.WARN} No voice channel found to disconnect from."
+        await ctx.send(embed=embed, delete_after=3)
 
     @commands.Cog.listener()
     async def on_voice_state_update(
