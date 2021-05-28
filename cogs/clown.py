@@ -122,7 +122,7 @@ class ClownWeek(commands.Cog):
         await asyncio.sleep(600)
         await player.disconnect()
 
-    @commands.group(name="whoisclown", aliases=["clown"])
+    @commands.group(name="clown")
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
     @clown_cache_exists()
     @clown_exists()
