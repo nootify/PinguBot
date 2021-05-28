@@ -63,8 +63,7 @@ class ClownWeek(commands.Cog):
     async def update_cache(self):
         """Update the in-memory cache of the clown data"""
         await self.bot.wait_until_ready()
-        async with self.bot.db.with_bind(self.bot.db_url):
-            ClownWeek.GUILD_CLOWNS = await Clown.query.gino.all()
+        ClownWeek.GUILD_CLOWNS = await Clown.query.gino.all()
         self.log.info("Updated cache")
 
     def clown_cache_exists():
@@ -84,15 +83,15 @@ class ClownWeek(commands.Cog):
         return commands.check(predicate)
 
     def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
-        """Custom voice channel permission checker.
+        """Custom voice channel permission checker
 
         Note:
         - @commands.bot_has_guild_permissions(...) only checks if the bot has this
         permission in one of the roles it has in the guild
         - @commands.bot_has_permissions(...) can only check the permissions of the
-        text channel it processed the command from, but not the actual voice channel.
+        text channel it processed the command from, but not the actual voice channel
         - Wavelink does not check for permissions before connecting, so errors are
-        silently eaten.
+        silently eaten
         """
         voice_permissions = channel.permissions_for(channel.guild.me)
         if voice_permissions.connect and voice_permissions.speak:
@@ -124,7 +123,8 @@ class ClownWeek(commands.Cog):
 
     @commands.group(name="whoisclown", aliases=["clown"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.user)
-    @commands.check_any(clown_cache_exists(), clown_exists())
+    @clown_cache_exists()
+    @clown_exists()
     async def clown_info(self, ctx: commands.Context):
         """Check who the clown is in the server"""
         if ctx.invoked_subcommand:
@@ -150,7 +150,7 @@ class ClownWeek(commands.Cog):
 
     @clown_info.command(name="nominate")
     async def old_nominate(self, ctx: commands.Context):
-        """Use the new nominate command."""
+        """Use the new nominate command"""
         await ctx.send(f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`")
 
     @commands.command(name="nominate", aliases=["nom"])
@@ -159,8 +159,8 @@ class ClownWeek(commands.Cog):
     async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
         """Nominate someone to be clown of the week
 
-        - Make sure to put a reason or else the nomination will be cancelled
-        - You can either ping someone or type a Discord username/nickname exactly without the @.
+        - You can either ping someone or type a Discord username/nickname exactly without the @
+        - Make sure to put a reason afterwards or else the nomination will be cancelled
         """
         if ctx.guild.id in ClownWeek.NOMINATION_POLLS and ClownWeek.NOMINATION_POLLS[ctx.guild.id]:
             raise commands.BadArgument("Only one nomination can happen in a server at a time.")
@@ -243,7 +243,7 @@ class ClownWeek(commands.Cog):
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.message.channel.fetch_message(
                 ClownWeek.NOMINATION_POLLS[ctx.guild.id].id
             )
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        except discord.HTTPException:
             ClownWeek.NOMINATION_POLLS[ctx.guild.id] = False
             raise commands.BadArgument("Unable to retrieve votes. Canceling nomination.")
 
@@ -271,23 +271,21 @@ class ClownWeek(commands.Cog):
             )
 
         # Change the clown because enough votes were in favor of the nomination
-        async with self.bot.db.with_bind(self.bot.db_url) as engine:
-            if clown_data is None:
-                new_clown = Clown(
-                    guild_id=ctx.guild.id,
-                    clown_id=user.id,
-                    previous_clown_id=user.id,
-                    join_time=datetime.utcfromtimestamp(0),
-                )
-                await new_clown.create(bind=engine)
-            else:
-                new_clown = clown_data
-                await new_clown.update(
-                    clown_id=user.id,
-                    previous_clown_id=clown_data.clown_id,
-                    nomination_date=datetime.utcnow(),
-                    join_time=datetime.utcfromtimestamp(0),
-                ).apply()
+        if clown_data is None:
+            new_clown = Clown(
+                guild_id=ctx.guild.id,
+                clown_id=user.id,
+                previous_clown_id=user.id,
+                join_time=datetime.utcfromtimestamp(0),
+            )
+            await new_clown.create()
+        else:
+            new_clown = clown_data
+            await new_clown.update(
+                clown_id=user.id,
+                previous_clown_id=clown_data.clown_id,
+                join_time=datetime.utcfromtimestamp(0),
+            ).apply()
         await self.update_cache()
 
         # Display who the new clown is
@@ -314,7 +312,8 @@ class ClownWeek(commands.Cog):
 
     @commands.command(name="honk", hidden=True)
     @commands.is_owner()
-    @commands.check_any(clown_cache_exists(), clown_exists())
+    @clown_cache_exists()
+    @clown_exists()
     async def honk(self, ctx: commands.Context):
         """Honk at the clown in a voice channel"""
         clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
@@ -431,9 +430,8 @@ class ClownWeek(commands.Cog):
                 and self.check_voice_permissions(after.channel)
             ):
                 # Only update the join time when it can connect and play
-                async with self.bot.db.with_bind(self.bot.db_url):
-                    new_clown = clown_data
-                    await new_clown.update(join_time=datetime.utcnow()).apply()
+                new_clown = clown_data
+                await new_clown.update(join_time=datetime.utcnow()).apply()
                 await self.update_cache()
                 await player.connect(after.channel.id)
 
