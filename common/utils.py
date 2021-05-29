@@ -37,7 +37,7 @@ class Settings:
         f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}"
     )
 
-    VERSION = "0.0.6"
+    VERSION = "1.0"
 
 
 class Icons(Enum):
