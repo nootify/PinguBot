@@ -13,8 +13,8 @@ from common.utils import Icons
 from db.models import Reminder
 
 
-class Alert(commands.Cog):
-    """Automation needs"""
+class Auto(commands.Cog):
+    """All things automated™"""
 
     QUEUED_REMINDERS = {}
 
@@ -88,8 +88,8 @@ class Alert(commands.Cog):
             reminder_text=text, reminder_time=remind_offset, user_id=ctx.author.id, channel_id=ctx.channel.id
         )
         await new_reminder.create()
-        if parsed_offset < timedelta(minutes=30) and new_reminder.reminder_id not in Alert.QUEUED_REMINDERS:
-            Alert.QUEUED_REMINDERS[new_reminder.reminder_id] = self.bot.loop.create_task(
+        if parsed_offset < timedelta(minutes=30) and new_reminder.reminder_id not in Auto.QUEUED_REMINDERS:
+            Auto.QUEUED_REMINDERS[new_reminder.reminder_id] = self.bot.loop.create_task(
                 self.setup_reminder(new_reminder)
             )
 
@@ -254,8 +254,8 @@ class Alert(commands.Cog):
         check_time = datetime.utcnow() + timedelta(minutes=30)
         rows = await Reminder.query.where(Reminder.reminder_time <= check_time).gino.all()
         for row in rows:
-            if row.reminder_id not in Alert.QUEUED_REMINDERS:
-                Alert.QUEUED_REMINDERS[row.reminder_id] = self.bot.loop.create_task(self.setup_reminder(row))
+            if row.reminder_id not in Auto.QUEUED_REMINDERS:
+                Auto.QUEUED_REMINDERS[row.reminder_id] = self.bot.loop.create_task(self.setup_reminder(row))
 
     async def setup_reminder(self, reminder: Reminder):
         await sleep_until(reminder.reminder_time)
@@ -276,7 +276,7 @@ class Alert(commands.Cog):
             self.log.debug("Reminder could not be sent because the channel is inaccessible")
         finally:
             await reminder.delete()
-            Alert.QUEUED_REMINDERS.pop(reminder.reminder_id)
+            Auto.QUEUED_REMINDERS.pop(reminder.reminder_id)
 
     @tasks.loop()
     async def send_snipe(self):
@@ -350,4 +350,4 @@ class Alert(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Alert(bot))
+    bot.add_cog(Auto(bot))
