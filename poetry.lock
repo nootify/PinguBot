@@ -73,7 +73,7 @@ tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>
 
 [[package]]
 name = "black"
-version = "21.5b1"
+version = "21.5b2"
 description = "The uncompromising code formatter."
 category = "dev"
 optional = false
@@ -89,8 +89,9 @@ toml = ">=0.10.1"
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
-d = ["aiohttp (>=3.6.0)", "aiohttp-cors"]
+d = ["aiohttp (>=3.6.0)", "aiohttp-cors (>=0.4.0)"]
 python2 = ["typed-ast (>=1.4.2)"]
+uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "braceexpand"
@@ -199,7 +200,7 @@ quart = ["gino-quart (>=0.1.0,<0.2.0)"]
 
 [[package]]
 name = "humanize"
-version = "3.5.0"
+version = "3.6.0"
 description = "Python humanize utilities"
 category = "main"
 optional = false
@@ -210,11 +211,11 @@ tests = ["freezegun", "pytest", "pytest-cov"]
 
 [[package]]
 name = "idna"
-version = "3.1"
+version = "3.2"
 description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
-python-versions = ">=3.4"
+python-versions = ">=3.5"
 
 [[package]]
 name = "import-expression"
@@ -515,8 +516,8 @@ attrs = [
     {file = "attrs-21.2.0.tar.gz", hash = "sha256:ef6aaac3ca6cd92904cdd0d83f629a15f18053ec84e6432106f7a4d04ae4f5fb"},
 ]
 black = [
-    {file = "black-21.5b1-py3-none-any.whl", hash = "sha256:8a60071a0043876a4ae96e6c69bd3a127dad2c1ca7c8083573eb82f92705d008"},
-    {file = "black-21.5b1.tar.gz", hash = "sha256:23695358dbcb3deafe7f0a3ad89feee5999a46be5fec21f4f1d108be0bcdb3b1"},
+    {file = "black-21.5b2-py3-none-any.whl", hash = "sha256:e5cf21ebdffc7a9b29d73912b6a6a9a4df4ce70220d523c21647da2eae0751ef"},
+    {file = "black-21.5b2.tar.gz", hash = "sha256:1fc0e0a2c8ae7d269dfcf0c60a89afa299664f3e811395d40b1922dff8f854b5"},
 ]
 braceexpand = [
     {file = "braceexpand-0.1.7-py2.py3-none-any.whl", hash = "sha256:91332d53de7828103dcae5773fb43bc34950b0c8160e35e0f44c4427a3b85014"},
@@ -652,12 +653,12 @@ gino = [
     {file = "gino-1.0.1.tar.gz", hash = "sha256:fe4189e82fe9d20c4a5f03fc775fb91c168061c5176b4c95623caeef22316150"},
 ]
 humanize = [
-    {file = "humanize-3.5.0-py3-none-any.whl", hash = "sha256:f584919f691ecfb67036a8639f2ac3d578f5f9073fb4cfd370a4cdf9f66aed78"},
-    {file = "humanize-3.5.0.tar.gz", hash = "sha256:a0474226e1494923f9106758e11f0c3bb4dbe5e7d84388fa78f90eb7713b5d65"},
+    {file = "humanize-3.6.0-py3-none-any.whl", hash = "sha256:6d9bee57f856418302b5d11d7229bc401882d800962a19fd6dcdd83672cb15e6"},
+    {file = "humanize-3.6.0.tar.gz", hash = "sha256:a31704cf41f023e268032c4813c6482573320150a0d986f76b245e0451bb89e1"},
 ]
 idna = [
-    {file = "idna-3.1-py3-none-any.whl", hash = "sha256:5205d03e7bcbb919cc9c19885f9920d622ca52448306f2377daede5cf3faac16"},
-    {file = "idna-3.1.tar.gz", hash = "sha256:c5b02147e01ea9920e6b0a3f1f7bb833612d507592c837a6c49552768f4054e1"},
+    {file = "idna-3.2-py3-none-any.whl", hash = "sha256:14475042e284991034cb48e06f6851428fb14c4dc953acd9be9a5e95c7b6dd7a"},
+    {file = "idna-3.2.tar.gz", hash = "sha256:467fbad99067910785144ce333826c71fb0e63a425657295239737f7ecd125f3"},
 ]
 import-expression = [
     {file = "import_expression-1.1.4-py3-none-any.whl", hash = "sha256:292099910a4dcc65ba562377cd2265487ba573dd63d73bdee5deec36ca49555b"},
