@@ -1,4 +1,4 @@
-version: "3"
+version: "3.8"
 
 services:
   bot:
@@ -10,25 +10,24 @@ services:
       - audio
       - db
     environment:
-      - LAVALINKHOST
-      - LAVALINKPORT
-      - LAVALINKPASSWORD
-      - LAVALINKREGION
+      - LAVALINK_PASSWORD
+      - LAVALINK_REGION
       - PINGU_TOKEN
-      - PGHOST
-      - PGUSER
-      - PGDATABASE
-      - PGPASSWORD
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
+      - POSTGRES_DB
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
     image: pingubot:latest
+    networks:
+      - bot_network
     restart: on-failure
     user: pingu:pingu
 
   audio:
     container_name: pingubot-audio
     image: fredboat/lavalink:master-v3
-    restart: on-failure
+    networks:
+      - bot_network
+    restart: always
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
       - ./soundfx:/opt/Lavalink/soundfx:ro
@@ -36,18 +35,23 @@ services:
   db:
     container_name: pingubot-db
     environment:
-      - POSTGRES_USER
       - POSTGRES_DB
+      - POSTGRES_USER
       - POSTGRES_PASSWORD
-    image: postgres:latest
-    # Only needed if the host needs to access it
+    image: postgres:13
     # ports:
     #   - "5432:5432"
-    restart: on-failure
+    networks:
+      - bot_network
+    restart: always
     user: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./database/template.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+networks:
+  bot_network:
+    name: pingubot_network
 
 volumes:
   postgres-data:
+    name: pingubot-data

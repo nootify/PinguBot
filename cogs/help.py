@@ -1,120 +1,120 @@
-"""This module is used to subclass the built-in Help class in discord.py so that
-it uses embed formatting instead of a simple code block output.
-"""
+from difflib import get_close_matches
+
 import discord
 from discord.ext import commands
 
+from common.utils import Icons
+
 
 class PinguHelp(commands.HelpCommand):
-    """Base code taken from:
-    https://gist.github.com/Rapptz/31a346ed1eb545ddeb0d451d81a60b3b
+    """Clean embed-style help pages"""
 
-    Warning: This breaks if there are more than 25 cogs or subcommands.
-    This is because the max number of fields in a single embed is 25.
-    """
     def __init__(self, colour, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.embed_colour = colour
 
     def get_description(self):
-        """Returns a helpful tip for the user."""
-        return ("Type {0}{1} [Module] or {0}{1} `[command]` for more info.\n"
-                "Module names are Case Sensitive.").format(
-            self.clean_prefix, self.invoked_with)
+        return f"Use {self.clean_prefix}{self.invoked_with} `[command]` to see more info."
 
     def get_command_signature(self, command):
-        """Returns the command name and its arguments, if available."""
         return f"{command.qualified_name} {command.signature}"
 
-    # Display a list of available commands of each loaded cog
+    def get_footer(self):
+        return "Commands that have: < ... > are needed • [ ... ] are optional"
+
+    def get_help_text(self, command):
+        if command.aliases and command.help:
+            aliases = "`, `".join(alias for alias in command.aliases)
+            return f"**Aliases:** `{aliases}`\n{command.help}"
+        elif command.aliases:
+            aliases = "`, `".join(alias for alias in command.aliases)
+            return f"**Aliases:** `{aliases}`"
+        elif command.help:
+            return command.help
+        return "..."
+
+    def get_help_short_doc(self, command):
+        if command.aliases and command.short_doc:
+            aliases = "`, `".join(alias for alias in command.aliases)
+            return f"**Aliases:** `{aliases}`\n{command.short_doc}"
+        elif command.aliases:
+            aliases = "`, `".join(alias for alias in command.aliases)
+            return f"**Aliases:** `{aliases}`"
+        elif command.short_doc:
+            return command.short_doc
+        return "..."
+
+    def get_help_embed(self, command):
+        help_embed = discord.Embed(
+            title=self.get_command_signature(command),
+            description=self.get_help_text(command),
+            colour=self.embed_colour,
+        )
+        help_embed.set_footer(text=self.get_footer())
+        return help_embed
+
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title="Pingu Modules & Commands", colour=self.embed_colour)
+        embed = discord.Embed(title="Pingu Commands", colour=self.embed_colour)
         embed.description = self.get_description()
+        embed.set_footer(text=self.get_footer())
 
-        # mapping is a dictionary of cogs paired with its associated commands
-        for cog, available_commands in mapping.items():
-            # Hide these modules from the help command
-            if cog and cog.qualified_name in ["Jishaku", "Alert"]:
-                continue
-            cog_name = "No Category" if not cog else cog.qualified_name
-            # Skip over cogs that are meant to be hidden (e.g. admin, help)
-            # since they don't have a class docstring associated with them
+        # mapping != dict
+        for cog, cog_commands in mapping.items():
+            # Skip cogs with no class docstring
             if cog and cog.description:
-                # Sort the commands in a module
-                filtered_commands = await self.filter_commands(available_commands, sort=True)
-                if filtered_commands:
-                    # Better than using a for loop and then stripping off the last comma
-                    visible_commands = "`, `".join(command.name for command in filtered_commands)
-                    desc = f"{cog.description}\n`{visible_commands}`"
-                else:
-                    desc = f"{cog.description}"
-                embed.add_field(name=cog_name, value=desc, inline=False)
-
-        # embed.set_author(name="Pingu Commands", icon_url="")
-        embed.set_footer(text=f"Requested by: {self.context.author}",
-                         icon_url=self.context.author.avatar_url)
+                visible_commands = await self.filter_commands(cog_commands, sort=True)
+                # Skip cogs with no visible commands (either hidden or denied because of cog_check)
+                if visible_commands:
+                    formatted_commands = "`, `".join(command.name for command in visible_commands)
+                    cog_help = f"{cog.description}\n`{formatted_commands}`"
+                    embed.add_field(name=cog.qualified_name, value=cog_help, inline=False)
         await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog):
         embed = discord.Embed(title=f"{cog.qualified_name} Commands", colour=self.embed_colour)
         if cog.description:
             embed.description = cog.description
+        embed.set_footer(text=self.get_footer())
 
-        filtered = await self.filter_commands(cog.get_commands(), sort=True)
-        for command in filtered:
-            embed.add_field(name=self.get_command_signature(command),
-                            value=command.short_doc or "...",
-                            inline=False)
-
-        embed.set_footer(text=f"Requested by: {self.context.author}",
-                         icon_url=self.context.author.avatar_url)
+        visible_commands = await self.filter_commands(cog.get_commands(), sort=True)
+        for command in visible_commands:
+            embed.add_field(
+                name=self.get_command_signature(command),
+                value=self.get_help_short_doc(command),
+                inline=False,
+            )
         await self.get_destination().send(embed=embed)
 
     async def send_group_help(self, group):
-        embed = discord.Embed(title=group.qualified_name, colour=self.embed_colour)
-        if group.help:
-            embed.description = group.help
-
-        # if isinstance(group, commands.Group):
-        filtered = await self.filter_commands(group.commands, sort=True)
-        for command in filtered:
-            embed.add_field(name=self.get_command_signature(command),
-                            value=command.short_doc or "...",
-                            inline=False)
-
-        usage_note = ("Commands with **<this>** are required,\n"
-                      "but the ones with **[this]** are optional")
-        embed.add_field(name="⠀", value=usage_note, inline=False)
-        embed.set_footer(text=f"Requested by: {self.context.author}",
-                         icon_url=self.context.author.avatar_url)
+        embed = self.get_help_embed(group)
+        visible_commands = await self.filter_commands(group.commands, sort=True)
+        for command in visible_commands:
+            embed.add_field(
+                name=self.get_command_signature(command),
+                value=self.get_help_short_doc(command),
+                inline=False,
+            )
         await self.get_destination().send(embed=embed)
 
     async def send_command_help(self, command):
-        embed = discord.Embed(title=self.get_command_signature(command),
-                              description=command.help or "...",
-                              colour=self.embed_colour)
-        if command.aliases:
-            aliases = "`, `".join(alias for alias in command.aliases)
-            embed.add_field(name="Aliases", value=f"`{aliases}`", inline=False)
-
-        usage_note = ("Commands with **<this>** are required,\n"
-                      "but the ones with **[this]** are optional")
-        embed.add_field(name="⠀", value=usage_note, inline=False)
-        embed.set_footer(text=f"Requested by: {self.context.author}",
-                         icon_url=self.context.author.avatar_url)
+        embed = self.get_help_embed(command)
         await self.get_destination().send(embed=embed)
 
     def command_not_found(self, string: str):
-        return f":x: `{string}` is not a valid command or module"
+        commands_list = [str(command) for command in self.context.bot.commands]
+        suggestions = "`\n- `".join(get_close_matches(string, commands_list))
+        if suggestions:
+            return f"There's no command called `{string}`, but did you mean...\n- `{suggestions}`"
+        else:
+            return f"{Icons.ERROR} There's no command called `{string}`"
 
     def subcommand_not_found(self, command, string: str):
-        return f":x: `{string}` is not a valid subcommand for `{command}`"
+        return f"{Icons.ERROR} There's no command called `{command}` `{string}`."
 
 
+# Helper class used to load in the PinguHelp class as a cog
+# Do not put a class docstring because it will show redundant information
 class Help(commands.Cog):
-    """Sadly, the recursion train ends here"""
-    # This is a helper class used to load the PinguHelp class in as a cog
-    # It's better than removing the built-in help command entirely
     def __init__(self, bot):
         self.bot = bot
         self._original_help_command = bot.help_command
@@ -126,5 +126,4 @@ class Help(commands.Cog):
 
 
 def setup(bot):
-    """Adds this module in as a cog to Pingu."""
     bot.add_cog(Help(bot))
