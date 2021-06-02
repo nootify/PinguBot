@@ -15,6 +15,7 @@ cache/**
 # Docker and source control
 docker-compose.yml
 .dockerignore
+.github
 **/.git
 **/.gitignore
 **/.gitattributes
