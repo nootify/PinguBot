@@ -1,5 +1,4 @@
-name: "PinguBot CodeQL Analysis Config"
-
+name: "PinguBot CodeQL config"
 paths-ignore:
   - poetry.toml
   - .venv
