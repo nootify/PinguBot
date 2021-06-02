@@ -1,4 +1,5 @@
-languages: ${{ matrix.language }}
+name: "PinguBot CodeQL Config"
 
 paths-ignore:
+  - poetry.toml
   - .venv
