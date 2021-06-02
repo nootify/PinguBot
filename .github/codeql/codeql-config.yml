@@ -1,4 +1,4 @@
-name: "PinguBot CodeQL Config"
+name: "PinguBot CodeQL Analysis Config"
 
 paths-ignore:
   - poetry.toml
