@@ -2,10 +2,10 @@ FROM python:3.8-slim AS python-base
 
     # python
 ENV PYTHONUNBUFFERED=1 \
-    # prevents python creating .pyc files
+    # prevent python from creating .pyc files
     PYTHONDONTWRITEBYTECODE=1 \
     \
-    # pip
+    # pip config
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
@@ -30,29 +30,24 @@ ENV PYTHONUNBUFFERED=1 \
 ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 
     # install required packages for psutil and start.sh
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
         gcc \
         python3-dev \
-        netcat \
-    && rm -rf /var/lib/apt/lists/* \
+        netcat && \
+    rm -rf /var/lib/apt/lists/* && \
     \
-    # add in the Pingu user / group to avoid using root
-    && groupadd -r -g 999 pingu \
-    && useradd -m -r -u 999 -g pingu pingu \
-    \
-    # create the folder for pingubot
-    && mkdir /pingubot \
-    && chown pingu:pingu /pingubot
-
+    # add in the Pingu user and group
+    groupadd -g 999 pingu && \
+    useradd -r -u 999 -g pingu pingu
 
 # `builder-base` stage is used to build deps + create our virtual environment
 FROM python-base as builder-base
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
         curl \
-        build-essential \
-    && rm -rf /var/lib/apt/lists/*
+        build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
 # install poetry - respects $POETRY_VERSION & $POETRY_HOME
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python
@@ -78,14 +73,16 @@ COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
 RUN poetry install
 
 # mount point of the code
-WORKDIR /pingubot
-USER pingu:pingu
+USER pingu
+WORKDIR /opt/pingubot
+COPY . .
 
 
 # `production` image used for runtime
 FROM python-base as production
 ENV JISHAKU_HIDE=1
 COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
-COPY --chown=pingu:pingu . /pingubot/
-WORKDIR /pingubot
+
 USER pingu:pingu
+WORKDIR /opt/pingubot
+COPY . .
