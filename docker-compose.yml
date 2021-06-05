@@ -37,8 +37,6 @@ services:
     networks:
       - bot_network
     restart: always
-    volumes:
-      - ./soundfx:/opt/Lavalink/soundfx:ro
 
   db:
     container_name: pingudb
