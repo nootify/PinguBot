@@ -4,6 +4,9 @@ FROM fredboat/lavalink:master-v3
 ARG LAVALINK_PORT=2333
 ARG LAVALINK_PASSWORD=youshallnotpass
 
+# Copy over local sound files
+COPY soundfx/ soundfx/
+
 # Copy over the config file
 COPY application.yml application.yml
 
