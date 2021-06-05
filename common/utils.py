@@ -21,20 +21,18 @@ class Settings:
     LOG_FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
     TIMESTAMP_FORMAT = "%m-%d-%Y %I:%M:%S %p %Z"
 
-    # Docker service name hosting the Lavalink instance
-    LAVALINK_HOST = "audio"
-    LAVALINK_PORT = 2333
+    LAVALINK_HOST = os.environ.get("LAVALINK_HOST")
+    LAVALINK_PORT = int(os.environ.get("LAVALINK_PORT"))
     LAVALINK_PASSWORD = os.environ.get("LAVALINK_PASSWORD")
     LAVALINK_REGION = os.environ.get("LAVALINK_REGION")
 
-    # Docker service name hosting the PostgreSQL instance
-    POSTGRES_HOST = "db"
-    POSTGRES_PORT = 5432
-    POSTGRES_DATABASE = os.environ.get("POSTGRES_DB")
+    POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
+    POSTGRES_PORT = os.environ.get("POSTGRES_PORT")
+    POSTGRES_DB = os.environ.get("POSTGRES_DB")
     POSTGRES_USER = os.environ.get("POSTGRES_USER")
     POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
     POSTGRES_URL = (
-        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}"
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
 
     VERSION = "1.0"

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Wait until both services are up and receiving connections
-while ! nc -z "db" 5432 ; do
+# Wait until both services are up and the bot can get a connection
+while ! nc -z "$POSTGRES_HOST" "$POSTGRES_PORT" ; do
     sleep 1;
-    echo "Waiting for PostgreSQL ..."
+    echo "Waiting for Postgres ..."
 done
-while ! nc -z "audio" 2333 ; do
+while ! nc -z "$LAVALINK_HOST" "$LAVALINK_PORT" ; do
     sleep 1;
     echo "Waiting for Lavalink ..."
 done
-python /pingubot/pingu.py
+python pingu.py
