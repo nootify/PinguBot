@@ -8,16 +8,21 @@ You need to do this or else the bot will not work properly.
 3. Scroll down to `Privileged Gateway Intents` and enable `Server Members Intent`.
 
 ## Setup & Deployment
-1. Create a `.env` file in the root folder with these variables:
+1. Create a `.env` file with these variables:
 ```bash
 PINGU_TOKEN=<bot token>
+
+LAVALINK_HOST=audio
+LAVALINK_PORT=2333
+LAVALINK_PASSWORD=<password>
+LAVALINK_REGION=us_east
+
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
 POSTGRES_DB=postgres
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<db password>
-LAVALINK_PASSWORD=youshallnotpass
-LAVALINK_REGION=<discord voice region>
+POSTGRES_PASSWORD=<password>
 ```
-- It's highly recommended to change the Lavalink password. Make sure to also change it in `lavalink/application.yml`.
 2. Run the bot with:
 ```bash
 docker-compose up -d --build
