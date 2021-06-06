@@ -68,7 +68,7 @@ class Auto(commands.Cog):
         - e.g. `remindme 4 hours to do X and Y`
         """
         try:
-            future_time, text = when.split("to", 1)
+            future_time, text = when.split(" to ", 1)
         except ValueError:
             raise commands.MissingRequiredArgument(Parameter("to", Parameter.POSITIONAL_ONLY))
         else:
@@ -93,8 +93,9 @@ class Auto(commands.Cog):
                 self.setup_reminder(new_reminder)
             )
 
+        readable_offset = naturaldelta(remind_offset)
         embed = self.bot.create_embed(
-            description=f"{Icons.ALERT} {ctx.author.mention}, you will be reminded about this in {naturaldelta(remind_offset)}"
+            description=f"{Icons.ALERT} {ctx.author.mention}, you will be reminded about this in {readable_offset}"
         )
         await ctx.send(embed=embed)
 
