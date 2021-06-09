@@ -27,11 +27,11 @@ class Misc(commands.Cog):
         py_version = platform.python_version()
         dpy_version = discord.__version__
         bot_ping = round(self.bot.latency, 4) * 1000  # This is in ms
-        ping_icon = "\N{large green circle}"
-        if int(bot_ping) >= 200:
-            ping_icon = "\N{large red circle}"
-        elif int(bot_ping) >= 100:
-            ping_icon = "\N{large yellow circle}"
+        ping_icon = "🟢"
+        if int(bot_ping) >= 100:
+            ping_icon = "🟡"
+        elif int(bot_ping) >= 200:
+            ping_icon = "🔴"
 
         # Pingu
         bot_account = self.bot.user
@@ -159,6 +159,29 @@ class Misc(commands.Cog):
         )
         embed = self.bot.create_embed(description=f"Invite me by clicking [here]({invite_link})")
         await ctx.send(embed=embed)
+
+    @commands.command(name="bots")
+    @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.channel)
+    async def show_bots(self, ctx: commands.Context):
+        """Show all the bots in the server"""
+        bot_list = [
+            f"{self.get_status_icon(member.status)} {member.mention}"
+            for member in filter(self.is_bot, ctx.guild.members)
+        ]
+        embed = self.bot.create_embed(title=f"Bots Found: {len(bot_list)}", description="\n".join(bot_list))
+        await ctx.send(embed=embed)
+
+    def is_bot(self, member: discord.Member):
+        """Helper method to filter out regular Discord users"""
+        if member.bot:
+            return True
+        return False
+
+    def get_status_icon(self, status: discord.Status):
+        """Helper method to display a bot's status"""
+        if status in (discord.Status.offline, discord.Status.invisible):
+            return "🔴"
+        return "🟢"
 
 
 def setup(bot):

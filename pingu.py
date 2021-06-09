@@ -31,8 +31,7 @@ class Pingu(commands.Bot):
         self.embed_colour = self.constants.EMBED_COLOUR
 
         # Required to get member info
-        intents = discord.Intents.default()
-        intents.members = True
+        intents = discord.Intents.all()
         super().__init__(
             command_prefix=self.pingu_prefix,
             description=self.pingu_description,
