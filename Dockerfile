@@ -1,4 +1,4 @@
-FROM python:3.8-slim AS python-base
+FROM python:3.9-slim AS python-base
 
     # python
 ENV PYTHONUNBUFFERED=1 \
