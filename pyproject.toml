@@ -19,7 +19,7 @@ pytimeparse = "^1.1.8"
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"
 flake8 = "^3.9.2"
-black = "^21.5b1"
+black = "^21.6b0"
 
 [tool.black]
 line-length = 120
