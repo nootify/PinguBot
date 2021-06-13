@@ -19,6 +19,7 @@ class ClownWeek(commands.Cog):
     GUILD_CLOWNS = None
     IDLE_PLAYERS = {}
     WAVELINK_NODE_NAME = "CLOWN"
+    CLOWN_SOUND_RESOURCE = "https://www.youtube.com/watch?v=x3SxEOvAOEg"
 
     def __init__(self, bot):
         self.bot = bot
@@ -355,7 +356,7 @@ class ClownWeek(commands.Cog):
             missing_perms = "`, `".join(perm for perm, val in required_permissions.items() if not val)
             raise MissingVoicePermissions(f"I'm missing `{missing_perms}` permission(s) for the voice channel.")
 
-        tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
+        tracks = await self.bot.wavelink.get_tracks(ClownWeek.CLOWN_SOUND_RESOURCE)
         await player.connect(channel.id)
         await player.play(tracks[0])
 
@@ -452,7 +453,7 @@ class ClownWeek(commands.Cog):
                 await self.update_cache()
                 await player.connect(after.channel.id)
 
-                tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
+                tracks = await self.bot.wavelink.get_tracks(ClownWeek.CLOWN_SOUND_RESOURCE)
                 await player.play(tracks[0])
                 # Pause if clown joined while deaf
                 if member.voice.self_deaf or member.voice.deaf:
