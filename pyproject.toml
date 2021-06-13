@@ -5,7 +5,7 @@ description = ""
 authors = ["nootify"]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.8,<4"
 python-dotenv = "^0.17.1"
 "discord.py" = {extras = ["voice"], version = "^1.7.2"}
 jishaku = "^2.0.0"
