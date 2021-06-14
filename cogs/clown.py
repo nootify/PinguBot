@@ -19,7 +19,9 @@ class ClownWeek(commands.Cog):
     GUILD_CLOWNS = None
     IDLE_PLAYERS = {}
     WAVELINK_NODE_NAME = "CLOWN"
-    CLOWN_SOUND_RESOURCE = "https://www.youtube.com/watch?v=x3SxEOvAOEg"
+
+    LOCAL_HONK_RESOURCE = "./soundfx/honk.mp3"
+    REMOTE_HONK_RESOURCE = "https://www.youtube.com/watch?v=x3SxEOvAOEg"
 
     def __init__(self, bot):
         self.bot = bot
@@ -76,7 +78,7 @@ class ClownWeek(commands.Cog):
 
         return commands.check(predicate)
 
-    def clown_exists(self, ctx: commands.Context):
+    def clown_exists(self, ctx: commands.Context) -> bool:
         return ctx.guild.id in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
 
     def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
@@ -117,6 +119,11 @@ class ClownWeek(commands.Cog):
     async def disconnect_idle_player(self, player: wavelink.Player):
         await asyncio.sleep(600)
         await player.disconnect()
+
+    async def get_honk_resource(self):
+        local_tracks = await self.bot.wavelink.get_tracks(ClownWeek.LOCAL_HONK_RESOURCE)
+        remote_tracks = await self.bot.wavelink.get_tracks(ClownWeek.REMOTE_HONK_RESOURCE)
+        return local_tracks or remote_tracks
 
     @commands.group(name="clown", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
@@ -356,7 +363,9 @@ class ClownWeek(commands.Cog):
             missing_perms = "`, `".join(perm for perm, val in required_permissions.items() if not val)
             raise MissingVoicePermissions(f"I'm missing `{missing_perms}` permission(s) for the voice channel.")
 
-        tracks = await self.bot.wavelink.get_tracks(ClownWeek.CLOWN_SOUND_RESOURCE)
+        tracks = await self.get_honk_resource()
+        if not tracks:
+            raise commands.BadArgument("Failed to load sound resource.")
         await player.connect(channel.id)
         await player.play(tracks[0])
 
@@ -447,13 +456,15 @@ class ClownWeek(commands.Cog):
                 and len(after.channel.members) >= 3
                 and self.check_voice_permissions(after.channel)
             ):
+                tracks = await self.get_honk_resource()
+                if not tracks:
+                    self.log.error("Failed to load sound resource")
+                    return
                 # Only update the join time when it can connect and play
                 new_clown = clown_data
                 await new_clown.update(join_time=datetime.utcnow()).apply()
                 await self.update_cache()
                 await player.connect(after.channel.id)
-
-                tracks = await self.bot.wavelink.get_tracks(ClownWeek.CLOWN_SOUND_RESOURCE)
                 await player.play(tracks[0])
                 # Pause if clown joined while deaf
                 if member.voice.self_deaf or member.voice.deaf:
