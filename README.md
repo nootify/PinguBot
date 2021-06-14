@@ -5,7 +5,7 @@ Runs on Python 3.8+ and Discord.py.
 You need to do this or else the bot will not work properly.
 1. Login to [Discord](https://discord.com/) and go to your [applications](https://discord.com/developers/applications).
 2. Click on your bot, then click on the `Bot` tab on the left.
-3. Scroll down to `Privileged Gateway Intents` and enable `Server Members Intent`.
+3. Scroll down to `Privileged Gateway Intents`. Enable both `Presence Intent` and `Server Members Intent`.
 
 ## Setup & Deployment
 1. Create a `.env` file with these variables:
