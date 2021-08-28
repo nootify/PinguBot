@@ -1,3 +1,5 @@
+# This repo is now archived because discord.py is no longer being maintained.
+
 # PinguBot
 Runs on Python 3.8+ and Discord.py.
 
