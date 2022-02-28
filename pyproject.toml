@@ -6,7 +6,7 @@ authors = ["nootify"]
 
 [tool.poetry.dependencies]
 python = ">=3.8"
-python-dotenv = "^0.17.1"
+python-dotenv = "^0.19.2"
 "discord.py" = {extras = ["voice"], version = "^1.7.2"}
 jishaku = "^2.0.0"
 asyncpg = "^0.23.0"
