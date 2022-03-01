@@ -47,6 +47,7 @@ class Pingu(commands.Bot):
             datefmt=self.constants.TIMESTAMP_FORMAT,
             stream=sys.stdout,
         )
+        logging.getLogger("gino.engine._SAEngine").setLevel(logging.FATAL)
         self.log = logging.getLogger("pingu")
         self.log.info("Starting instance")
 
@@ -59,10 +60,6 @@ class Pingu(commands.Bot):
         self.lavalink_host = self.constants.LAVALINK_HOST
         self.lavalink_port = self.constants.LAVALINK_PORT
         self.lavalink_password = self.constants.LAVALINK_PASSWORD
-        self.lavalink_region = self.constants.LAVALINK_REGION
-
-        # Load debugging toolset
-        self.load_extension("jishaku")
 
         # Load all of the cogs
         for dirpath, dirnames, filenames in os.walk("./cogs"):
@@ -80,6 +77,9 @@ class Pingu(commands.Bot):
         self.log.info("Setting up database tables")
         await self.db.set_bind(self.db_url)
         await self.db.gino.create_all()
+
+        # Load debugging toolset
+        self.load_extension("jishaku")
 
     async def on_ready(self):
         """Runs when the bot is ready to receive commands.
