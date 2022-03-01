@@ -23,43 +23,42 @@ class ClownWeek(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
+        self.bot.loop.create_task(self.create_node())
         self.bot.loop.create_task(self.update_cache())
-
-        # Avoids overwriting the wavelink client on cog reload
-        if not hasattr(bot, "wavelink"):
-            self.bot.wavelink = wavelink.Client(bot=self.bot)
-
-        self.bot.loop.create_task(self.start_node())
 
     def cog_unload(self):
         self.bot.loop.create_task(self.destroy_node())
         self.log.info("Disconnecting from all voice channels")
 
-    async def start_node(self):
+    async def create_node(self):
         """Start a wavelink node"""
         await self.bot.wait_until_ready()
-        node = await self.bot.wavelink.initiate_node(
+        await wavelink.NodePool.create_node(
+            bot=self.bot,
             host=self.bot.lavalink_host,
             port=self.bot.lavalink_port,
-            rest_uri=f"http://{self.bot.lavalink_host}:{self.bot.lavalink_port}",
             password=self.bot.lavalink_password,
             identifier=ClownWeek.WAVELINK_NODE_NAME,
-            region=self.bot.lavalink_region,
         )
-        node.set_hook(self.on_event_hook)
 
     async def destroy_node(self):
         """Gracefully disconnect from voice channels on cog reload"""
-        node = self.bot.wavelink.get_node(ClownWeek.WAVELINK_NODE_NAME)
-        # players = tuple(node.players.values())  # Avoids dict resize issue
-        # for player in players:
-        #     await player.destroy()
-        await node.destroy(force=True)
+        node = wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME)
+        await node.disconnect()
 
-    async def on_event_hook(self, event):
-        """Catch events from a wavelink node"""
-        if isinstance(event, (wavelink.TrackEnd, wavelink.TrackException)):
-            await event.player.destroy()
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready(self, node: wavelink.Node):
+        self.log.info("Wavelink node '%s' ready to process requests", node.identifier)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason: str):
+        if reason == "FINISHED":
+            await player.disconnect()
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_exception(self, player: wavelink.Player, track: wavelink.Track, error: str):
+        self.log.error("Wavelink error: %s", error)
+        await player.disconnect()
 
     async def update_cache(self):
         """Update the in-memory cache of the clown data"""
@@ -113,9 +112,11 @@ class ClownWeek(commands.Cog):
             return False
         return True
 
-    async def disconnect_idle_player(self, player: wavelink.Player):
+    async def disconnect_idle_player(self, player: wavelink.Player, guild_id: int):
         await asyncio.sleep(600)
+        self.log.info("Player idled. Closing connection.")
         await player.disconnect()
+        ClownWeek.IDLE_PLAYERS.pop(guild_id)
 
     @commands.group(name="clown", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
@@ -340,11 +341,11 @@ class ClownWeek(commands.Cog):
                 found_channel = channel
                 break
 
-        player = self.bot.wavelink.get_player(ctx.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
+        player = wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME).get_player(ctx.guild)
         if not found_channel or (ctx.guild.afk_channel and found_channel.id == ctx.guild.afk_channel.id):
             raise commands.BadArgument("The clown is not in any voice channel(s).")
-        if player.is_connected or player.is_playing:
-            raise commands.BadArgument("Already playing in a voice channel.")
+        if player and player.is_connected():
+            raise commands.BadArgument("Already in another voice channel.")
         if not self.check_voice_permissions(found_channel):
             bot_permissions = found_channel.permissions_for(found_channel.guild.me)
             required_permissions = {
@@ -355,9 +356,11 @@ class ClownWeek(commands.Cog):
             missing_perms = "`, `".join(perm for perm, val in required_permissions.items() if not val)
             raise MissingVoicePermissions(f"I'm missing `{missing_perms}` permission(s) for the voice channel.")
 
-        tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
-        await player.connect(channel.id)
-        await player.play(tracks[0])
+        player = await found_channel.connect(cls=wavelink.Player)
+        track = await wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME).get_tracks(
+            query="https://www.youtube.com/watch?v=x3SxEOvAOEg", cls=wavelink.YouTubeTrack
+        )
+        await player.play(track[0])
 
     @honk.error
     async def honk_error_handler(self, ctx: commands.Context, error):
@@ -376,9 +379,9 @@ class ClownWeek(commands.Cog):
     async def disconnect(self, ctx: commands.Context):
         """Disconnect Pingu from a voice channel for debugging purposes"""
         embed = self.bot.create_embed()
-        player = self.bot.wavelink.get_player(ctx.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
-        if player and player.is_connected:
-            await player.destroy()
+        player = ctx.guild.voice_client
+        if player and player.is_connected():
+            await player.disconnect()
             embed.description = f"{Icons.ALERT} Disconnected from voice channel."
             await ctx.send(embed=embed, delete_after=3)
             return
@@ -402,21 +405,28 @@ class ClownWeek(commands.Cog):
         if member.bot or not self.check_clown_voice_state(member, after.channel):
             return
 
-        player = self.bot.wavelink.get_player(member.guild.id, node_id=ClownWeek.WAVELINK_NODE_NAME)
+        player = member.guild.voice_client
+        track = await wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME).get_tracks(
+            query="https://www.youtube.com/watch?v=x3SxEOvAOEg", cls=wavelink.YouTubeTrack
+        )
 
         # Clown connects to voice from disconnected state
         if not before.channel and after.channel:
-            is_active = player and player.is_connected and player.channel_id == after.channel.id
+            is_active = player and player.is_connected()
             is_clown_deaf = member.voice.self_deaf or member.voice.deaf
-            if is_active:
-                if member.guild.id in ClownWeek.IDLE_PLAYERS:
-                    disconnect_player_task = ClownWeek.IDLE_PLAYERS.pop(member.guild.id)
-                    disconnect_player_task.cancel()
 
-                if is_clown_deaf:
-                    await player.set_pause(True)
-                else:
-                    await player.set_pause(False)
+            if member.guild.id in ClownWeek.IDLE_PLAYERS:
+                disconnect_task = ClownWeek.IDLE_PLAYERS.pop(member.guild.id)
+                disconnect_task.cancel()
+
+            if is_active:
+                if is_clown_deaf or player.channel.id != after.channel.id:
+                    await player.pause()
+                    return
+
+                if not is_clown_deaf and player.channel.id == after.channel.id:
+                    await player.resume()
+                    return
                 return
 
             clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == member.guild.id)
@@ -429,7 +439,8 @@ class ClownWeek(commands.Cog):
                     member.guild.id,
                 )
                 return
-            # Skip if the clown is spamming the bot
+
+            # Skip if the clown connected within the last hour
             last_joined = datetime.utcnow() - clown_data.join_time
             self.log.debug(
                 "Clown '%s' last joined %s second(s) ago",
@@ -440,45 +451,45 @@ class ClownWeek(commands.Cog):
                 self.log.debug("Potential spam connect by '%s' in '%s'", member.id, member.guild.id)
                 return
 
-            # Play the audio
-            if (
-                not player.is_connected
-                and len(after.channel.members) >= 3
-                and self.check_voice_permissions(after.channel)
-            ):
+            # Play the audio if all conditions are met
+            if not player and len(after.channel.members) >= 3 and self.check_voice_permissions(after.channel):
                 # Only update the join time when it can connect and play
                 new_clown = clown_data
                 await new_clown.update(join_time=datetime.utcnow()).apply()
                 await self.update_cache()
-                await player.connect(after.channel.id)
 
-                tracks = await self.bot.wavelink.get_tracks("./soundfx/honk.mp3")
-                await player.play(tracks[0])
+                player = await after.channel.connect(cls=wavelink.Player)
+                track = await wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME).get_tracks(
+                    query="https://www.youtube.com/watch?v=x3SxEOvAOEg", cls=wavelink.YouTubeTrack
+                )
+                await player.play(track[0])
                 # Pause if clown joined while deaf
                 if member.voice.self_deaf or member.voice.deaf:
-                    await player.set_pause(True)
+                    await player.pause()
             return
 
         # Play while the clown is not deafened
         if before.channel and after.channel:
-            is_active = player and player.is_connected and player.channel_id == after.channel.id
+            is_active = player and player.is_connected()
             is_clown_deaf = member.voice.self_deaf or member.voice.deaf
 
-            if not is_active or (is_active and is_clown_deaf):
-                await player.set_pause(True)
+            if is_active:
+                if is_clown_deaf or player.channel.id != after.channel.id:
+                    await player.pause()
+                    return
 
-            if is_active and not is_clown_deaf:
-                await player.set_pause(False)
+                if not is_clown_deaf and player.channel.id == after.channel.id:
+                    await player.resume()
+                    return
             return
 
-        # Pause if clown disconnects from voice
-        # Auto disconnect after 10 minutes
+        # Pause if clown disconnects from voice and auto disconnect after 10 minutes
         if before.channel and not after.channel:
-            if player.is_connected:
-                await player.set_pause(True)
+            if player and player.is_connected():
+                await player.pause()
                 if member.guild.id not in ClownWeek.IDLE_PLAYERS:
                     ClownWeek.IDLE_PLAYERS[member.guild.id] = self.bot.loop.create_task(
-                        self.disconnect_idle_player(player)
+                        self.disconnect_idle_player(player, member.guild.id)
                     )
 
 
