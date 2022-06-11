@@ -411,14 +411,14 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "wavelink"
-version = "1.1.1"
+version = "1.3.1"
 description = "A robust and powerful Lavalink wrapper for discord.py and derivatives."
 category = "main"
 optional = false
 python-versions = "*"
 
 [package.dependencies]
-aiohttp = ">=3.6.0,<3.9.0"
+aiohttp = ">=3.7.4,<4"
 
 [[package]]
 name = "yarl"
@@ -435,7 +435,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<4"
-content-hash = "47d41f0ac3f485c10ae410f3457e7236753dec97c7b82a242bffba5e43125f89"
+content-hash = "11c1465aa27415f1cf42bbf2f31063a80f9c4afccd1d3f04a1dacc02a7a4540d"
 
 [metadata.files]
 aiohttp = [
@@ -888,8 +888,8 @@ typing-extensions = [
     {file = "typing_extensions-4.1.1.tar.gz", hash = "sha256:1a9462dcc3347a79b1f1c0271fbe79e844580bb598bafa1ed208b94da3cdcd42"},
 ]
 wavelink = [
-    {file = "wavelink-1.1.1-py3-none-any.whl", hash = "sha256:4b0d50c282eb86ecbd6cc209ed638eeed669435432eaede810e3212f9113d0ef"},
-    {file = "wavelink-1.1.1.tar.gz", hash = "sha256:560e2594086e5219e1a830dfb8b5a0f4228f068d6a28c59d105942ba59ac84d1"},
+    {file = "wavelink-1.3.1-py3-none-any.whl", hash = "sha256:cb8574ed57fbc33601310ab57bacb87608371fe4184f1bdb815759adde886cc0"},
+    {file = "wavelink-1.3.1.tar.gz", hash = "sha256:deda11bff332fbae052aa1c617eb1bd0d59525411fd35de6c6a33bb408d47e38"},
 ]
 yarl = [
     {file = "yarl-1.7.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:f2a8508f7350512434e41065684076f640ecce176d262a7d54f0da41d99c5a95"},
