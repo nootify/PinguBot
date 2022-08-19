@@ -22,7 +22,7 @@ services:
       - POSTGRES_PASSWORD
     image: pingubot:latest
     networks:
-      - bot_network
+      - bot-network
     restart: on-failure
     user: pingu:pingu
 
@@ -35,7 +35,7 @@ services:
     container_name: pingulink
     image: pingulink:latest
     networks:
-      - bot_network
+      - bot-network
     restart: always
 
   db:
@@ -44,19 +44,19 @@ services:
       - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
-    image: postgres:13
+    image: postgres:latest
     # ports:
     #   - "5432:5432"
     networks:
-      - bot_network
+      - bot-network
     restart: always
     user: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
 networks:
-  bot_network:
-    name: pingubot_network
+  bot-network:
+    name: pingubot-network
 
 volumes:
   postgres-data:
