@@ -9,12 +9,12 @@ from common.utils import Icons
 class PinguHelp(commands.HelpCommand):
     """Clean embed-style help pages"""
 
-    def __init__(self, colour, *args, **kwargs):
+    def __init__(self, *args, embed_colour: discord.Colour, **kwargs):
         super().__init__(*args, **kwargs)
-        self.embed_colour = colour
+        self.embed_colour = embed_colour
 
     def get_description(self):
-        return f"Use {self.clean_prefix}{self.invoked_with} `[command]` to see more info."
+        return f"Use {self.invoked_with} `[command]` to see more info."
 
     def get_command_signature(self, command):
         return f"{command.qualified_name} {command.signature}"
@@ -118,12 +118,12 @@ class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._original_help_command = bot.help_command
-        bot.help_command = PinguHelp(self.bot.embed_colour)
+        bot.help_command = PinguHelp(embed_colour=self.bot.embed_colour)
         bot.help_command.cog = self
 
     def cog_unload(self):
         self.bot.help_command = self._original_help_command
 
 
-def setup(bot):
-    bot.add_cog(Help(bot))
+async def setup(bot):
+    await bot.add_cog(Help(bot))

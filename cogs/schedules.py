@@ -300,5 +300,5 @@ class Schedules(commands.Cog):
             await ctx.send(embed=error_embed)
 
 
-def setup(bot):
-    bot.add_cog(Schedules(bot))
+async def setup(bot):
+    await bot.add_cog(Schedules(bot))

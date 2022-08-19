@@ -1,15 +1,19 @@
 #!/usr/bin/env python
+from __future__ import annotations
+
+import asyncio
 import logging
 import os
 import sys
 import traceback
-from datetime import datetime
 
 import discord
 from discord.ext import commands
+from discord.utils import utcnow
+from dotenv import load_dotenv
 
-from common.utils import Icons, Settings
-from db import db
+from common.utils import Icons
+from models import Base, engine
 
 
 class Pingu(commands.Bot):
@@ -18,68 +22,48 @@ class Pingu(commands.Bot):
     Commands must be created in a cog and not in here.
     """
 
-    def __init__(self):
-        self.boot_time = datetime.utcnow()
-
-        # Avoid naming conflicts with attributes in commands.Bot
-        self.constants = Settings()
-        self.pingu_activity = self.constants.DEFAULT_ACTIVITY
-        self.pingu_description = self.constants.DEFAULT_DESCRIPTION
-        self.pingu_prefix = self.constants.DEFAULT_PREFIX
-        self.pingu_status = self.constants.DEFAULT_STATUS
-        self.pingu_version = self.constants.VERSION
-        self.embed_colour = self.constants.EMBED_COLOUR
-
-        # Required to get member info
-        intents = discord.Intents.all()
-        super().__init__(
-            command_prefix=self.pingu_prefix,
-            description=self.pingu_description,
-            activity=self.pingu_activity,
-            status=self.pingu_status,
-            intents=intents,
-        )
-
-        # Logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format=self.constants.LOG_FORMAT,
-            datefmt=self.constants.TIMESTAMP_FORMAT,
-            stream=sys.stdout,
-        )
-        logging.getLogger("gino.engine._SAEngine").setLevel(logging.FATAL)
+    def __init__(
+        self,
+        *args,
+        pingu_cogs: list[str],
+        lavalink_host: str,
+        lavalink_port: str,
+        lavalink_password: str,
+        lavalink_ssl: bool,
+        boot_time: str,
+        embed_colour: discord.Color,
+        pingu_version: str,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
         self.log = logging.getLogger("pingu")
         self.log.info("Starting instance")
 
-        # Database
-        self.db = db
-        self.db_url = self.constants.POSTGRES_URL
-        self.loop.create_task(self.setup_db())
+        self.pingu_cogs = pingu_cogs
+        self.lavalink_host = lavalink_host
+        self.lavalink_port = lavalink_port
+        self.lavalink_password = lavalink_password
+        self.lavalink_ssl = lavalink_ssl
+        self.boot_time = boot_time
+        self.embed_colour = embed_colour
+        self.pingu_version = pingu_version
 
-        # Lavalink / wavelink
-        self.lavalink_host = self.constants.LAVALINK_HOST
-        self.lavalink_port = self.constants.LAVALINK_PORT
-        self.lavalink_password = self.constants.LAVALINK_PASSWORD
-
-        # Load all of the cogs
-        for dirpath, dirnames, filenames in os.walk("./cogs"):
-            for filename in sorted(filenames):
-                if filename.endswith(".py"):
-                    cog_name = os.path.splitext(filename)[0]  # Trim file extension
-                    self.log.info("Loading %s cog", cog_name)
-                    self.load_extension(f"cogs.{cog_name}")
-
-    def create_embed(self, **kwargs):
+    def create_embed(self, **kwargs) -> discord.Embed:
         embed_template = discord.Embed(colour=self.embed_colour, **kwargs)
         return embed_template
 
-    async def setup_db(self):
-        self.log.info("Setting up database tables")
-        await self.db.set_bind(self.db_url)
-        await self.db.gino.create_all()
+    async def setup_hook(self) -> None:
+        self.log.info("Connecting to database")
+        async with engine.begin() as conn:
+            # await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        # await engine.dispose()
 
-        # Load debugging toolset
-        self.load_extension("jishaku")
+        self.log.info("Loading 'jishaku'")
+        await self.load_extension("jishaku")
+        for cog in self.pingu_cogs:
+            self.log.info("Loading '%s' (cogs.%s)", cog, cog)
+            await self.load_extension(f"cogs.{cog}")
 
     async def on_ready(self):
         """Runs when the bot is ready to receive commands.
@@ -138,10 +122,39 @@ class Pingu(commands.Bot):
             await ctx.send(embed=error_embed)
 
 
-if __name__ == "__main__":
+async def main():
+    load_dotenv()
+
     TOKEN = os.environ.get("PINGU_TOKEN")
     if not TOKEN:
-        raise ValueError("Token is not set in $PINGU_TOKEN")
+        raise ValueError("Token not set in $PINGU_TOKEN")
 
-    pingu = Pingu()
-    pingu.run(TOKEN)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%m-%d-%Y %I:%M:%S %p %Z",
+        stream=sys.stdout,
+    )
+    logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.ERROR)
+
+    settings = {
+        "activity": discord.Activity(type=discord.ActivityType.watching, name="you 👀"),
+        "description": "noot noot",
+        "intents": discord.Intents.all(),
+        "status": discord.Status.online,
+        "pingu_cogs": [cog[:-3] for cog in sorted(os.listdir("./cogs")) if cog.endswith(".py")],
+        "lavalink_host": os.environ.get("LAVALINK_HOST"),
+        "lavalink_port": int(os.environ.get("LAVALINK_PORT")),
+        "lavalink_password": os.environ.get("LAVALINK_PASSWORD"),
+        "lavalink_ssl": bool(os.environ.get("LAVALINK_SSL")),
+        "boot_time": utcnow(),
+        "embed_colour": discord.Colour.from_rgb(138, 181, 252),
+        "pingu_version": "2.0",
+    }
+
+    async with Pingu("%", **settings) as pingu:
+        await pingu.start(TOKEN)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

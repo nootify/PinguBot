@@ -1,33 +1,4 @@
-import os
 from enum import Enum
-
-import discord
-from dotenv import load_dotenv
-
-
-load_dotenv()
-
-
-class Settings:
-    __slots__ = ()
-
-    DEFAULT_ACTIVITY = discord.Activity(type=discord.ActivityType.watching, name="you 👀")
-    DEFAULT_DESCRIPTION = "noot noot"
-    DEFAULT_PREFIX = "%"
-    DEFAULT_STATUS = discord.Status.online
-
-    EMBED_COLOUR = discord.Colour.from_rgb(138, 181, 252)
-
-    LOG_FORMAT = "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s"
-    TIMESTAMP_FORMAT = "%m-%d-%Y %I:%M:%S %p %Z"
-
-    LAVALINK_HOST = os.environ.get("LAVALINK_HOST")
-    LAVALINK_PORT = int(os.environ.get("LAVALINK_PORT"))
-    LAVALINK_PASSWORD = os.environ.get("LAVALINK_PASSWORD")
-
-    POSTGRES_URL = os.environ.get("POSTGRES_URL")
-
-    VERSION = "1.0"
 
 
 class Icons(Enum):

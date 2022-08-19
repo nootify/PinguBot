@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS python-base
+FROM python:3.10-slim AS python-base
 
     # python
 ENV PYTHONUNBUFFERED=1 \
@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
     \
     # poetry
     # https://python-poetry.org/docs/configuration/#using-environment-variables
-    POETRY_VERSION=1.1.6 \
+    POETRY_VERSION=1.1.14 \
     # make poetry install to this location
     POETRY_HOME="/opt/poetry" \
     # make poetry create the virtual environment in the project's root

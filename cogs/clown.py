@@ -1,15 +1,17 @@
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import timedelta
 
 import discord
 import wavelink
 from discord.ext import commands
-from discord.utils import sleep_until
+from discord.utils import sleep_until, utcnow
+from sqlalchemy import update
+from sqlalchemy.future import select
 
 from common.exception import MissingClown, MissingData, MissingVoicePermissions
 from common.utils import Icons
-from db.models import Clown
+from models import Clown, async_session
 
 
 class ClownWeek(commands.Cog):
@@ -26,11 +28,11 @@ class ClownWeek(commands.Cog):
         self.bot.loop.create_task(self.create_node())
         self.bot.loop.create_task(self.update_cache())
 
-    def cog_unload(self):
-        self.bot.loop.create_task(self.destroy_node())
+    async def cog_unload(self) -> None:
+        await self.destroy_node()
         self.log.info("Disconnecting from all voice channels")
 
-    async def create_node(self):
+    async def create_node(self) -> None:
         """Start a wavelink node"""
         await self.bot.wait_until_ready()
         await wavelink.NodePool.create_node(
@@ -38,32 +40,38 @@ class ClownWeek(commands.Cog):
             host=self.bot.lavalink_host,
             port=self.bot.lavalink_port,
             password=self.bot.lavalink_password,
+            https=self.bot.lavalink_ssl,
             identifier=ClownWeek.WAVELINK_NODE_NAME,
         )
 
-    async def destroy_node(self):
+    async def destroy_node(self) -> None:
         """Gracefully disconnect from voice channels on cog reload"""
         node = wavelink.NodePool.get_node(identifier=ClownWeek.WAVELINK_NODE_NAME)
         await node.disconnect()
 
     @commands.Cog.listener()
-    async def on_wavelink_node_ready(self, node: wavelink.Node):
+    async def on_wavelink_node_ready(self, node: wavelink.Node) -> None:
         self.log.info("Wavelink node '%s' ready to process requests", node.identifier)
 
     @commands.Cog.listener()
-    async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason: str):
+    async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason: str) -> None:
         if reason == "FINISHED":
             await player.disconnect()
 
     @commands.Cog.listener()
-    async def on_wavelink_track_exception(self, player: wavelink.Player, track: wavelink.Track, error: str):
+    async def on_wavelink_track_exception(self, player: wavelink.Player, track: wavelink.Track, error: str) -> None:
         self.log.error("Wavelink error: %s", error)
         await player.disconnect()
 
-    async def update_cache(self):
+    async def update_cache(self) -> None:
         """Update the in-memory cache of the clown data"""
         await self.bot.wait_until_ready()
-        ClownWeek.GUILD_CLOWNS = await Clown.query.gino.all()
+        async with async_session() as session:
+            async with session.begin():
+                result = await session.execute(select(Clown))
+                ClownWeek.GUILD_CLOWNS = result.scalars().all()
+                self.log.info(ClownWeek.GUILD_CLOWNS)
+
         self.log.info("Updated cache")
 
     def clown_cache_exists():
@@ -114,7 +122,7 @@ class ClownWeek(commands.Cog):
 
     async def disconnect_idle_player(self, player: wavelink.Player, guild_id: int):
         await asyncio.sleep(600)
-        self.log.info("Player idled. Closing connection.")
+        self.log.info("Player idled in %s. Closing connection.", guild_id)
         await player.disconnect()
         ClownWeek.IDLE_PLAYERS.pop(guild_id)
 
@@ -133,7 +141,7 @@ class ClownWeek(commands.Cog):
         except commands.BadArgument:
             raise MissingClown("The clown is no longer in the server.")
         else:
-            time_spent = date.today() - clown_data.nomination_date
+            time_spent = utcnow().date() - clown_data.nomination_date
             embed = self.bot.create_embed(
                 description=f"{Icons.ALERT} The clown is {server_clown.mention} (clowned {time_spent.days} days ago)."
             )
@@ -163,9 +171,9 @@ class ClownWeek(commands.Cog):
         poll_body_text = f"{user.mention} {reason}"
         poll_embed = self.bot.create_embed(description=poll_body_text)
         poll_embed.set_author(name="Clown of the Week Nomination")
-        poll_embed.set_thumbnail(url=user.avatar_url)
+        poll_embed.set_thumbnail(url=user.display_avatar)
         poll_embed.set_footer(
-            text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.avatar_url
+            text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.display_avatar
         )
         return poll_embed
 
@@ -198,7 +206,7 @@ class ClownWeek(commands.Cog):
                 raise commands.BadArgument(f"{user.mention} was already clown of the week. Nominate someone else.")
 
             current_clown = ctx.author.id == clown_data.clown_id
-            time_spent = date.today() - clown_data.nomination_date
+            time_spent = utcnow().date() - clown_data.nomination_date
             eligible = time_spent >= timedelta(days=7)
             if current_clown and not eligible:
                 raise commands.BadArgument(
@@ -231,7 +239,7 @@ class ClownWeek(commands.Cog):
             raise commands.BadArgument("Nomination reason is too long.")
 
         delay_poll = 60  # seconds
-        delay_datetime = datetime.utcnow() + timedelta(seconds=delay_poll)
+        delay_datetime = utcnow() + timedelta(seconds=delay_poll)
         ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(
             embed=self.create_poll_embed(ctx, user, nominator_response.content, delay_poll)
         )
@@ -275,22 +283,17 @@ class ClownWeek(commands.Cog):
             )
 
         # Change the clown because enough votes were in favor of the nomination
-        if clown_data is None:
-            new_clown = Clown(
-                guild_id=ctx.guild.id,
-                clown_id=user.id,
-                previous_clown_id=user.id,
-                join_time=datetime.utcfromtimestamp(0),
-            )
-            await new_clown.create()
-        else:
-            new_clown = clown_data
-            await new_clown.update(
-                clown_id=user.id,
-                previous_clown_id=clown_data.clown_id,
-                nomination_date=self.bot.db.func.now(),
-                join_time=datetime.utcfromtimestamp(0),
-            ).apply()
+        async with async_session() as session:
+            async with session.begin():
+                if clown_data is None:
+                    session.add(Clown(guild_id=ctx.guild.id, clown_id=user.id, previous_clown_id=user.id))
+                else:
+                    await session.execute(
+                        update(Clown)
+                        .where(Clown.guild_id == ctx.guild.id)
+                        .values(clown_id=user.id, previous_clown_id=clown_data.clown_id)
+                    )
+                await session.commit()
         await self.update_cache()
 
         # Display who the new clown is
@@ -329,7 +332,7 @@ class ClownWeek(commands.Cog):
             raise MissingClown("No clown has been nominated.")
 
         clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == ctx.guild.id)
-        time_spent = date.today() - clown_data.nomination_date
+        time_spent = utcnow().date() - clown_data.nomination_date
         if time_spent >= timedelta(days=7):
             raise commands.BadArgument("A new clown nomination is needed.")
 
@@ -432,8 +435,8 @@ class ClownWeek(commands.Cog):
             clown_data = next(clown for clown in ClownWeek.GUILD_CLOWNS if clown.guild_id == member.guild.id)
 
             # Skip if a week or more passed
-            time_spent = date.today() - clown_data.nomination_date
-            if time_spent >= timedelta(days=7):
+            time_spent = utcnow().date() - clown_data.nomination_date
+            if time_spent >= timedelta(days=6):
                 self.log.debug(
                     "New nomination needed in '%s'",
                     member.guild.id,
@@ -441,7 +444,7 @@ class ClownWeek(commands.Cog):
                 return
 
             # Skip if the clown connected within the last hour
-            last_joined = datetime.utcnow() - clown_data.join_time
+            last_joined = utcnow() - clown_data.join_time
             self.log.debug(
                 "Clown '%s' last joined %s second(s) ago",
                 member.id,
@@ -454,8 +457,12 @@ class ClownWeek(commands.Cog):
             # Play the audio if all conditions are met
             if not player and len(after.channel.members) >= 3 and self.check_voice_permissions(after.channel):
                 # Only update the join time when it can connect and play
-                new_clown = clown_data
-                await new_clown.update(join_time=datetime.utcnow()).apply()
+                async with async_session() as session:
+                    async with session.begin():
+                        await session.execute(
+                            update(Clown).where(Clown.guild_id == member.guild.id).values(clown_id=member.id)
+                        )
+                    await session.commit()
                 await self.update_cache()
 
                 player = await after.channel.connect(cls=wavelink.Player)
@@ -493,5 +500,5 @@ class ClownWeek(commands.Cog):
                     )
 
 
-def setup(bot):
-    bot.add_cog(ClownWeek(bot))
+async def setup(bot):
+    await bot.add_cog(ClownWeek(bot))
