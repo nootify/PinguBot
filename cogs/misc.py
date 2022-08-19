@@ -1,10 +1,10 @@
 import logging
 import platform
-from datetime import datetime
 
 import discord
 import psutil
 from discord.ext import commands
+from discord.utils import utcnow
 from humanize import naturalsize
 
 from common.utils import Icons
@@ -73,7 +73,7 @@ class Misc(commands.Cog):
         bot_pids = ", ".join(str(thread_id) for thread_id in bot_threads)
 
         # Uptime calculations
-        diff = datetime.utcnow() - self.bot.boot_time
+        diff = utcnow() - self.bot.boot_time
         hrs, remainder = divmod(int(diff.total_seconds()), 3600)
         mins, secs = divmod(remainder, 60)
         days, hrs = divmod(hrs, 24)
@@ -81,7 +81,7 @@ class Misc(commands.Cog):
 
         # Embed stats into the message
         stats_embed = self.bot.create_embed()
-        stats_embed.set_author(name="Pingu Status", icon_url=ctx.me.avatar_url)
+        stats_embed.set_author(name="Pingu Status", icon_url=ctx.me.display_avatar)
         stats_embed.set_footer(
             text=f"{ping_icon} Ping: {bot_ping:.2f} ms • Running on Python {py_version} and Discord.py {dpy_version}"
         )
@@ -129,15 +129,15 @@ class Misc(commands.Cog):
     @commands.command(name="yoink", aliases=["avatar", "pfp"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member = None):
-        """Steal a profile picture
+        """Steal someone's profile picture
 
         - Omit **[user]** to yoink your own picture
         - You can either ping someone or type a Discord username/server nickname exactly without the @
         """
         if not user:
-            await ctx.send(ctx.author.avatar_url)
+            await ctx.send(ctx.author.display_avatar)
         else:
-            await ctx.send(user.avatar_url)
+            await ctx.send(user.display_avatar)
 
     @yoink.error
     async def yoink_error_handler(self, ctx: commands.Context, error):
@@ -184,5 +184,5 @@ class Misc(commands.Cog):
         return "🟢"
 
 
-def setup(bot):
-    bot.add_cog(Misc(bot))
+async def setup(bot):
+    await bot.add_cog(Misc(bot))

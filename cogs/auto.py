@@ -2,15 +2,17 @@ import logging
 from datetime import datetime, timedelta
 from inspect import Parameter
 
+import arrow
 import discord
 from discord.ext import commands, tasks
-from discord.utils import sleep_until
-from humanize import naturaldelta
+from discord.utils import sleep_until, utcnow
 from pytimeparse.timeparse import timeparse
 from pytz import timezone
+from sqlalchemy import delete
+from sqlalchemy.future import select
 
 from common.utils import Icons
-from db.models import Reminder
+from models import Reminder, async_session
 
 
 class Auto(commands.Cog):
@@ -26,10 +28,7 @@ class Auto(commands.Cog):
         self.sent_message = None
         self.check_reminders.start()
 
-    # async def cog_check(self, ctx):
-    #     return await self.bot.is_owner(ctx.author)
-
-    def cog_unload(self):
+    async def cog_unload(self):
         self.send_snipe.cancel()
 
     def get_snipe_channel(self, guild: discord.Guild, channel_id: str) -> discord.TextChannel:
@@ -83,19 +82,25 @@ class Auto(commands.Cog):
         if not parsed_time:
             raise commands.BadArgument("Unable to parse given time. Check if there are typos.")
         parsed_offset = timedelta(seconds=parsed_time)
-        remind_offset = datetime.utcnow() + parsed_offset
-        new_reminder = Reminder(
-            reminder_text=text, reminder_time=remind_offset, user_id=ctx.author.id, channel_id=ctx.channel.id
-        )
-        await new_reminder.create()
+        remind_offset = utcnow() + parsed_offset
+
+        async with async_session() as session:
+            async with session.begin():
+                new_reminder = Reminder(
+                    reminder_text=text, reminder_time=remind_offset, user_id=ctx.author.id, channel_id=ctx.channel.id
+                )
+                session.add(new_reminder)
+                await session.commit()
+            await session.refresh(new_reminder)
+
         if parsed_offset < timedelta(minutes=30) and new_reminder.reminder_id not in Auto.QUEUED_REMINDERS:
             Auto.QUEUED_REMINDERS[new_reminder.reminder_id] = self.bot.loop.create_task(
                 self.setup_reminder(new_reminder)
             )
 
-        readable_offset = naturaldelta(remind_offset)
+        readable_offset = arrow.get(remind_offset).humanize()
         embed = self.bot.create_embed(
-            description=f"{Icons.ALERT} {ctx.author.mention}, you will be reminded about this in {readable_offset}"
+            description=f"{Icons.ALERT} {ctx.author.mention}, you will be reminded about this {readable_offset}"
         )
         await ctx.send(embed=embed)
 
@@ -125,25 +130,28 @@ class Auto(commands.Cog):
         - It will only show reminders that are still active
         - Reminders will be removed if the bot is unable to access the channel
         """
-        reminders = (
-            await Reminder.query.where(Reminder.user_id == ctx.author.id)
-            .order_by(Reminder.reminder_time.asc())
-            .limit(10)
-            .gino.all()
-        )
+        async with async_session() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select(Reminder).where(Reminder.user_id == ctx.author.id).order_by(Reminder.reminder_time).limit(10)
+                )
+                reminders = result.scalars().all()
 
         embed = self.bot.create_embed(title="Reminders")
         if not reminders:
             embed.description = f"{Icons.ALERT} No reminders were found."
         for reminder in reminders:
-            time_left = naturaldelta(reminder.reminder_time)
-            embed.add_field(name=f"{reminder.reminder_id}: In {time_left}", value=reminder.reminder_text, inline=False)
+            time_left = arrow.get(reminder.reminder_time).humanize().capitalize()
+            embed.add_field(name=f"{reminder.reminder_id} | {time_left}", value=reminder.reminder_text, inline=False)
         await ctx.send(embed=embed)
 
     @remind.command(name="clear")
     async def clear_reminders(self, ctx: commands.Context):
         """Clear all of the reminders you made"""
-        await Reminder.delete.where(Reminder.user_id == ctx.author.id).gino.status()
+        async with async_session() as session:
+            async with session.begin():
+                await session.execute(delete(Reminder).where(Reminder.user_id == ctx.author.id))
+                await session.commit()
 
         embed = self.bot.create_embed(description=f"{Icons.ALERT} All reminders deleted.")
         await ctx.send(embed=embed)
@@ -159,12 +167,13 @@ class Auto(commands.Cog):
         except ValueError:
             raise commands.BadArgument("Reminder id must be a number.")
 
-        reminder = await Reminder.query.where(
-            (Reminder.user_id == ctx.author.id) & (Reminder.reminder_id == reminder_id)
-        ).gino.all()
+        async with async_session() as session:
+            async with session.begin():
+                reminder = await session.execute(
+                    delete(Reminder).where((Reminder.user_id == ctx.author.id) & (Reminder.reminder_id == reminder_id))
+                )
         if not reminder:
             raise commands.BadArgument("Reminder with that id was not found.")
-        await reminder[0].delete()
 
         embed = self.bot.create_embed(description=f"{Icons.ALERT} Reminder deleted succesfully.")
         await ctx.send(embed=embed)
@@ -252,8 +261,11 @@ class Auto(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def check_reminders(self):
-        check_time = datetime.utcnow() + timedelta(minutes=30)
-        rows = await Reminder.query.where(Reminder.reminder_time <= check_time).gino.all()
+        check_time = utcnow() + timedelta(minutes=30)
+        async with async_session() as session:
+            async with session.begin():
+                result = await session.execute(select(Reminder).where(Reminder.reminder_time <= check_time))
+                rows = result.scalars().all()
         for row in rows:
             if row.reminder_id not in Auto.QUEUED_REMINDERS:
                 Auto.QUEUED_REMINDERS[row.reminder_id] = self.bot.loop.create_task(self.setup_reminder(row))
@@ -262,12 +274,12 @@ class Auto(commands.Cog):
         await sleep_until(reminder.reminder_time)
 
         ping = self.bot.get_user(reminder.user_id)
-        if not ping:
-            await reminder.delete()
-            return
         channel = self.bot.get_channel(reminder.channel_id)
-        if not channel:
-            await reminder.delete()
+        if not ping or not channel:
+            async with async_session() as session:
+                async with session.begin():
+                    await session.execute(delete(Reminder).where(Reminder.reminder_id == reminder.reminder_id))
+                    await session.commit()
             return
 
         embed = self.bot.create_embed(title="Don't forget to:", description=reminder.reminder_text)
@@ -276,7 +288,10 @@ class Auto(commands.Cog):
         except discord.HTTPException:
             self.log.debug("Reminder could not be sent because the channel is inaccessible")
         finally:
-            await reminder.delete()
+            async with async_session() as session:
+                async with session.begin():
+                    await session.execute(delete(Reminder).where(Reminder.reminder_id == reminder.reminder_id))
+                    await session.commit()
             Auto.QUEUED_REMINDERS.pop(reminder.reminder_id)
 
     @tasks.loop()
@@ -350,5 +365,5 @@ class Auto(commands.Cog):
             return
 
 
-def setup(bot):
-    bot.add_cog(Auto(bot))
+async def setup(bot):
+    await bot.add_cog(Auto(bot))
