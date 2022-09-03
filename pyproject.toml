@@ -21,7 +21,7 @@ humanize = "^4.3.0"
 [tool.poetry.dev-dependencies]
 coverage = "^6.4.4"
 flake8 = "^5.0.4"
-black = "^22.6.0"
+black = "^22.8.0"
 
 [tool.black]
 line-length = 120
