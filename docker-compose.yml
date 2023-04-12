@@ -10,20 +10,20 @@ services:
       - audio
       - db
     environment:
+      - DATABASE_URL
       - LAVALINK_HOST
       - LAVALINK_PORT
       - LAVALINK_PASSWORD
-      - LAVALINK_REGION
+      - LAVALINK_SSL
       - PINGU_TOKEN
       - POSTGRES_HOST
       - POSTGRES_PORT
-      - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
     image: pingubot:latest
     networks:
       - bot-network
-    restart: on-failure
+    restart: no
     user: pingu:pingu
 
   audio:
