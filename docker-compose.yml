@@ -15,7 +15,6 @@ services:
       - LAVALINK_HOST
       - LAVALINK_PORT
       - LAVALINK_PASSWORD
-      - LAVALINK_SSL
       - PINGU_TOKEN
       - POSTGRES_HOST
       - POSTGRES_PORT
