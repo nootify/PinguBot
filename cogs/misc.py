@@ -1,3 +1,4 @@
+import os
 import logging
 import platform
 
@@ -129,7 +130,7 @@ class Misc(commands.Cog):
     @commands.command(name="yoink", aliases=["avatar", "pfp"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member = None):
-        """Steal someone's profile picture
+        """Steal someone's profile picture in the server
 
         - Omit **[user]** to yoink your own picture
         - You can either ping someone or type a Discord username/server nickname exactly without the @
@@ -182,6 +183,19 @@ class Misc(commands.Cog):
         if status in (discord.Status.offline, discord.Status.invisible):
             return "🔴"
         return "🟢"
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        """Automation process for a special person"""
+        if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
+            await member.edit(nick=os.environ.get("KYOHKO"))
+            roles = [
+                member.guild.get_role(868357561592725534),
+                member.guild.get_role(273671436281970689),
+                member.guild.get_role(667785085826891806),
+                member.guild.get_role(1086394159700643890),
+            ]
+            await member.add_roles(*roles, atomic=False)
 
 
 async def setup(bot):

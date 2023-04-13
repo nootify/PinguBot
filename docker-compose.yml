@@ -11,6 +11,7 @@ services:
       - db
     environment:
       - DATABASE_URL
+      - KYOKHO
       - LAVALINK_HOST
       - LAVALINK_PORT
       - LAVALINK_PASSWORD
@@ -23,7 +24,7 @@ services:
     image: pingubot:latest
     networks:
       - bot-network
-    restart: no
+    restart: on-failure
     user: pingu:pingu
 
   audio:
