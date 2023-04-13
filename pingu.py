@@ -142,14 +142,14 @@ async def main():
         "description": "noot noot",
         "intents": discord.Intents.all(),
         "status": discord.Status.online,
-        "pingu_cogs": [cog[:-3] for cog in sorted(os.listdir("./cogs")) if cog.endswith(".py")],
+        "pingu_cogs": [cog[:-3] for cog in sorted(os.listdir("./cogs")) if cog.endswith(".py") and cog[:-3] != "clown"],
         "lavalink_host": os.environ.get("LAVALINK_HOST"),
         "lavalink_port": int(os.environ.get("LAVALINK_PORT")),
         "lavalink_password": os.environ.get("LAVALINK_PASSWORD"),
         "lavalink_ssl": bool(os.environ.get("LAVALINK_SSL")),
         "boot_time": utcnow(),
         "embed_colour": discord.Colour.from_rgb(138, 181, 252),
-        "pingu_version": "2.0",
+        "pingu_version": "2.1",
     }
 
     async with Pingu("%", **settings) as pingu:
