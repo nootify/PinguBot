@@ -29,7 +29,6 @@ class Pingu(commands.Bot):
         lavalink_host: str,
         lavalink_port: str,
         lavalink_password: str,
-        lavalink_ssl: bool,
         boot_time: str,
         embed_colour: discord.Color,
         pingu_version: str,
@@ -43,7 +42,6 @@ class Pingu(commands.Bot):
         self.lavalink_host = lavalink_host
         self.lavalink_port = lavalink_port
         self.lavalink_password = lavalink_password
-        self.lavalink_ssl = lavalink_ssl
         self.boot_time = boot_time
         self.embed_colour = embed_colour
         self.pingu_version = pingu_version
@@ -146,10 +144,9 @@ async def main():
         "lavalink_host": os.environ.get("LAVALINK_HOST"),
         "lavalink_port": int(os.environ.get("LAVALINK_PORT")),
         "lavalink_password": os.environ.get("LAVALINK_PASSWORD"),
-        "lavalink_ssl": bool(os.environ.get("LAVALINK_SSL")),
         "boot_time": utcnow(),
         "embed_colour": discord.Colour.from_rgb(138, 181, 252),
-        "pingu_version": "2.0",
+        "pingu_version": "2.1",
     }
 
     async with Pingu("%", **settings) as pingu:
