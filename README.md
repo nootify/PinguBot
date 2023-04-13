@@ -1,5 +1,5 @@
 # PinguBot
-Runs on Python 3.8+ and Discord.py 2.0+
+Runs on Python 3.10+ and Discord.py 2.0+
 
 ## Requirements
 You need to do this or else the bot will not work properly.
@@ -15,16 +15,13 @@ PINGU_TOKEN=<bot token>
 LAVALINK_HOST=audio
 LAVALINK_PORT=2333
 LAVALINK_PASSWORD=youshallnotpass
-LAVALINK_SSL=false
 
 # only necessary for local db setup
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
-POSTGRES_DB=postgres
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<password here>
 
-DATABASE_URL=postgres://postgres:<password here>@db:5432/postgres
 ```
 2. Run the bot with:
 ```bash
