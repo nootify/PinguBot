@@ -115,7 +115,7 @@ class PinguHelp(commands.HelpCommand):
 # Helper class used to load in the PinguHelp class as a cog
 # Do not put a class docstring because it will show redundant information
 class Help(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self._original_help_command = bot.help_command
         bot.help_command = PinguHelp(embed_colour=self.bot.embed_colour)

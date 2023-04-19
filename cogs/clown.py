@@ -77,7 +77,7 @@ class ClownWeek(commands.Cog):
 
         return commands.check(predicate)
 
-    def clown_exists(self, ctx: commands.Context):
+    def clown_exists(self, ctx: commands.Context) -> bool:
         return ctx.guild.id in (clown.guild_id for clown in ClownWeek.GUILD_CLOWNS)
 
     def check_voice_permissions(self, channel: discord.VoiceChannel) -> bool:
@@ -115,7 +115,7 @@ class ClownWeek(commands.Cog):
             return False
         return True
 
-    async def disconnect_idle_player(self, player: wavelink.Player, guild_id: int):
+    async def disconnect_idle_player(self, player: wavelink.Player, guild_id: int) -> None:
         await asyncio.sleep(600)
         self.log.info("Player idled in %s. Closing connection.", guild_id)
         await player.disconnect()
@@ -124,7 +124,7 @@ class ClownWeek(commands.Cog):
     @commands.group(name="clown", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     @clown_cache_exists()
-    async def clown_info(self, ctx: commands.Context):
+    async def clown_info(self, ctx: commands.Context) -> None:
         """Check who the clown is in the server"""
         if not self.clown_exists(ctx):
             raise MissingClown("No clown has been nominated.")
@@ -143,7 +143,7 @@ class ClownWeek(commands.Cog):
             await ctx.send(embed=embed)
 
     @clown_info.error
-    async def clown_info_error_handler(self, ctx: commands.Context, error):
+    async def clown_info_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData)):
             error_embed.description = f"{Icons.WARN} {error}"
@@ -154,7 +154,7 @@ class ClownWeek(commands.Cog):
             await ctx.send(embed=error_embed)
 
     @clown_info.command(name="nominate")
-    async def old_nominate(self, ctx: commands.Context):
+    async def old_nominate(self, ctx: commands.Context) -> None:
         """Use the new nominate command"""
         embed = self.bot.create_embed(
             description=f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`"
@@ -175,7 +175,7 @@ class ClownWeek(commands.Cog):
     @commands.command(name="nominate", aliases=["nom"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     @clown_cache_exists()
-    async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member):
+    async def nominate_clown(self, ctx: commands.Context, *, user: discord.Member) -> None:
         """Nominate someone to be clown of the week
 
         - You can either ping someone or type a Discord username/nickname exactly without the @
@@ -299,7 +299,7 @@ class ClownWeek(commands.Cog):
         ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
 
     @nominate_clown.error
-    async def nominate_clown_error_handler(self, ctx: commands.Context, error):
+    async def nominate_clown_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No user with that Discord username or server nickname was found."
@@ -323,7 +323,7 @@ class ClownWeek(commands.Cog):
     @commands.command(name="honk", hidden=True)
     @commands.is_owner()
     @clown_cache_exists()
-    async def honk(self, ctx: commands.Context):
+    async def honk(self, ctx: commands.Context) -> None:
         """Honk at the clown in a voice channel"""
         if not self.clown_exists(ctx):
             raise MissingClown("No clown has been nominated.")
@@ -364,7 +364,7 @@ class ClownWeek(commands.Cog):
         await player.play(track[0])
 
     @honk.error
-    async def honk_error_handler(self, ctx: commands.Context, error):
+    async def honk_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData, MissingVoicePermissions)):
             error_embed.description = f"{Icons.WARN} {error}"
@@ -377,7 +377,7 @@ class ClownWeek(commands.Cog):
 
     @commands.command(name="disconnect", aliases=["dc"], hidden=True)
     @commands.is_owner()
-    async def disconnect(self, ctx: commands.Context):
+    async def disconnect(self, ctx: commands.Context) -> None:
         """Disconnect Pingu from a voice channel for debugging purposes"""
         embed = self.bot.create_embed()
         player = ctx.guild.voice_client
@@ -396,7 +396,7 @@ class ClownWeek(commands.Cog):
         member: discord.Member,
         before: discord.VoiceState,
         after: discord.VoiceState,
-    ):
+    ) -> None:
         """Triggers when the clown joins a voice channel and was not previously in another voice
         channel in the server.
 

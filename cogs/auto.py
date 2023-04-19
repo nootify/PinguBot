@@ -20,7 +20,7 @@ class Auto(commands.Cog):
 
     QUEUED_REMINDERS = {}
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
         self.snipe_location = None
@@ -28,7 +28,7 @@ class Auto(commands.Cog):
         self.sent_message = None
         self.check_reminders.start()
 
-    async def cog_unload(self):
+    async def cog_unload(self) -> None:
         self.send_snipe.cancel()
 
     def get_snipe_channel(self, guild: discord.Guild, channel_id: str) -> discord.TextChannel:
@@ -50,7 +50,7 @@ class Auto(commands.Cog):
             return False
         return True
 
-    async def setup_snipe(self):
+    async def setup_snipe(self) -> None:
         if self.send_snipe.is_running():
             self.send_snipe.restart()
         else:
@@ -58,7 +58,7 @@ class Auto(commands.Cog):
 
     @commands.group(name="remindme", aliases=["remind", "reminder"], invoke_without_command=True)
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
-    async def remind(self, ctx: commands.Context, *, when: str):
+    async def remind(self, ctx: commands.Context, *, when: str) -> None:
         """Remind yourself about something in the future
 
         - The time goes first and it has to be some sort of human readable offset
@@ -105,7 +105,7 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @remind.error
-    async def remind_error_handler(self, ctx: commands.Context, error):
+    async def remind_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "when":
@@ -123,7 +123,7 @@ class Auto(commands.Cog):
             await ctx.send(embed=error_embed)
 
     @remind.command(name="list", aliases=["ls"])
-    async def list_reminders(self, ctx: commands.Context):
+    async def list_reminders(self, ctx: commands.Context) -> None:
         """Show the ten latest reminders created by you
 
         - Also shows the id and when it will send the reminder
@@ -146,7 +146,7 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @remind.command(name="clear")
-    async def clear_reminders(self, ctx: commands.Context):
+    async def clear_reminders(self, ctx: commands.Context) -> None:
         """Clear all of the reminders you made"""
         async with async_session() as session:
             async with session.begin():
@@ -157,7 +157,7 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @remind.command(name="delete", aliases=["del", "remove", "rm", "cancel"])
-    async def delete_reminder(self, ctx: commands.Context, reminder_id: str):
+    async def delete_reminder(self, ctx: commands.Context, reminder_id: str) -> None:
         """Delete a reminder by its id
 
         - You can only delete reminders that you created
@@ -179,7 +179,7 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @delete_reminder.error
-    async def delete_reminder_error_handler(self, ctx: commands.Context, error):
+    async def delete_reminder_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "reminder_id":
@@ -192,7 +192,7 @@ class Auto(commands.Cog):
 
     @commands.group(name="snipe", hidden=True, invoke_without_command=True)
     @commands.is_owner()
-    async def snipe_info(self, ctx: commands.Context):
+    async def snipe_info(self, ctx: commands.Context) -> None:
         """Check the snipe status"""
         if not self.snipe_location:
             raise commands.BadArgument("No snipe has been set.")
@@ -204,14 +204,14 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @snipe_info.error
-    async def snipe_error_handler(self, ctx: commands.Context, error):
-        error_embed = self.bot.create_embed()
+    async def snipe_error_handler(self, ctx: commands.Context, error) -> None:
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
     @snipe_info.command(name="remote", aliases=["r"])
-    async def remote_snipe(self, ctx: commands.Context, guild_id: str, channel_id: str):
+    async def remote_snipe(self, ctx: commands.Context, guild_id: str, channel_id: str) -> None:
         """Set the snipe location"""
         try:
             sniped_guild = self.bot.get_guild(int(guild_id))
@@ -232,7 +232,7 @@ class Auto(commands.Cog):
         await ctx.send(embed=embed)
 
     @remote_snipe.error
-    async def remote_snipe_error_handler(self, ctx: commands.Context, error):
+    async def remote_snipe_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             error_embed.description = f"{Icons.ERROR} Missing `{error.param.name}` to send message to"
@@ -243,7 +243,7 @@ class Auto(commands.Cog):
 
     @snipe_info.command(name="cancel", hidden=True)
     @commands.is_owner()
-    async def cancel_snipe(self, ctx: commands.Context):
+    async def cancel_snipe(self, ctx: commands.Context) -> None:
         """Cancel the snipe if it exists"""
         if self.send_snipe.is_running():
             embed = self.bot.create_embed(description=f"{Icons.SUCCESS} Stopped snipe")
@@ -253,14 +253,14 @@ class Auto(commands.Cog):
             raise commands.BadArgument("Snipe not active.")
 
     @cancel_snipe.error
-    async def cancel_snipe_error_handler(self, ctx: commands.Context, error):
+    async def cancel_snipe_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
     @tasks.loop(minutes=30)
-    async def check_reminders(self):
+    async def check_reminders(self) -> None:
         check_time = utcnow() + timedelta(minutes=30)
         async with async_session() as session:
             async with session.begin():
@@ -270,7 +270,7 @@ class Auto(commands.Cog):
             if row.reminder_id not in Auto.QUEUED_REMINDERS:
                 Auto.QUEUED_REMINDERS[row.reminder_id] = self.bot.loop.create_task(self.setup_reminder(row))
 
-    async def setup_reminder(self, reminder: Reminder):
+    async def setup_reminder(self, reminder: Reminder) -> None:
         await sleep_until(reminder.reminder_time)
 
         ping = self.bot.get_user(reminder.user_id)
@@ -295,7 +295,7 @@ class Auto(commands.Cog):
             Auto.QUEUED_REMINDERS.pop(reminder.reminder_id)
 
     @tasks.loop()
-    async def send_snipe(self):
+    async def send_snipe(self) -> None:
         if self.snipe_location:
             # Account for daylight savings ("US/Eastern" is EST only)
             adjusted_timezone = timezone("America/New_York")
@@ -340,11 +340,11 @@ class Auto(commands.Cog):
 
     @check_reminders.before_loop
     @send_snipe.before_loop
-    async def wait_for_bot(self):
+    async def wait_for_bot(self) -> None:
         await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
-    async def on_message_delete(self, message):
+    async def on_message_delete(self, message: discord.Message) -> None:
         """Check who is deleting the snipe message"""
         if self.sent_message and self.sent_message.id == message.id:
             message_deleter = None

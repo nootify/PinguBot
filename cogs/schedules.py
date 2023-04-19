@@ -20,24 +20,24 @@ class Schedules(commands.Cog):
     LAST_UPDATE = {}
     QUEUED_CODES = asyncio.Queue()
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
         self.refresh_cache.start()
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
         self.refresh_cache.cancel()
         self.log.info("Stopped background task and cleared cached data")
 
     @tasks.loop(hours=24)
-    async def refresh_cache(self):
+    async def refresh_cache(self) -> None:
         await self.get_semester_data()
 
     @refresh_cache.before_loop
-    async def wait_for_bot(self):
+    async def wait_for_bot(self) -> None:
         await self.bot.wait_until_ready()
 
-    async def get_queued_schedule(self):
+    async def get_queued_schedule(self) -> None:
         """Helper function to get schedule data from the queue"""
         semester_code = await Schedules.QUEUED_CODES.get()
         if semester_code not in Schedules.LAST_UPDATE:
@@ -110,7 +110,7 @@ class Schedules(commands.Cog):
             else:
                 self.log.info("Updated '%s' with latest data", semester_code)
 
-    async def get_course_sections(self, course_number: str, semester_code: str) -> list:
+    async def get_course_sections(self, course_number: str, semester_code: str) -> list[str]:
         """Helper function that gets the sections of a course."""
         await Schedules.QUEUED_CODES.put(semester_code)
         await self.get_queued_schedule()
@@ -170,7 +170,7 @@ class Schedules(commands.Cog):
 
         return output
 
-    def get_schedule_embeds(self, course: str, semester: str, sections: list) -> list:
+    def get_schedule_embeds(self, course: str, semester: str, sections: list) -> list[discord.Embed]:
         """Helper function that allows courses with more than 24 sections to display properly."""
         max_limit = 24
 
@@ -233,7 +233,7 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
-    async def course_info(self, ctx, course: str, *, semester: str = None):
+    async def course_info(self, ctx, course: str, *, semester: str = None) -> None:
         """Get details about a course at NJIT
 
         - You can pick a specific semester by putting a year and season (e.g. 2017 fall)
@@ -288,7 +288,7 @@ class Schedules(commands.Cog):
             await ctx.send(embed=embed)
 
     @course_info.error
-    async def course_error_handler(self, ctx: commands.Context, error):
+    async def course_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "course":

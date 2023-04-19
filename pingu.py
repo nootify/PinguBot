@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from __future__ import annotations
-
 import asyncio
 import logging
 import os
@@ -71,7 +69,7 @@ class Pingu(commands.Bot):
         """
         self.log.info("Instance is ready to receive commands")
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message) -> None:
         """Actions that are performed for any message that the bot can see."""
         # Ignore DMs
         if not message.guild:
@@ -84,7 +82,7 @@ class Pingu(commands.Bot):
         # Let the library parse the text
         await super().process_commands(message)
 
-    async def on_command_error(self, ctx: commands.Context, error):
+    async def on_command_error(self, ctx: commands.Context, error) -> None:
         """Errors that occur while processing or executing a command."""
         # Errors that are unnecessary or handled locally
         ignored_errors = (
