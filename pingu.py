@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from __future__ import annotations
-
 import asyncio
 import logging
 import os
@@ -71,7 +69,7 @@ class Pingu(commands.Bot):
         """
         self.log.info("Instance is ready to receive commands")
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message) -> None:
         """Actions that are performed for any message that the bot can see."""
         # Ignore DMs
         if not message.guild:
@@ -84,7 +82,7 @@ class Pingu(commands.Bot):
         # Let the library parse the text
         await super().process_commands(message)
 
-    async def on_command_error(self, ctx: commands.Context, error):
+    async def on_command_error(self, ctx: commands.Context, error) -> None:
         """Errors that occur while processing or executing a command."""
         # Errors that are unnecessary or handled locally
         ignored_errors = (
@@ -104,17 +102,12 @@ class Pingu(commands.Bot):
                 f"{Icons.WARN} Don't spam commands. Try again after {error.retry_after:.1f} second(s)."
             )
             await ctx.send(embed=error_embed)
-            return
-
-        if isinstance(error, commands.CheckFailure):
+        elif isinstance(error, commands.CheckFailure):
             self.log.debug("CheckFail: %s", error)
             error_embed.description = f"{Icons.ERROR} Sorry, but you don't have permission to do that."
             await ctx.send(embed=error_embed)
-            return
-
         # Catch unhandled exceptions from a command
-        if isinstance(error, commands.CommandError):
-            self.log.error("%s: %s", type(error).__name__, error)
+        elif isinstance(error, commands.CommandError):
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             error_embed.description = f"{Icons.ERROR} Unexpected error occurred."
             await ctx.send(embed=error_embed)

@@ -14,7 +14,7 @@ from common.utils import Icons
 class Misc(commands.Cog):
     """Commands not in a specific category"""
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.log = logging.getLogger(__name__)
         self.proc = psutil.Process()
@@ -22,7 +22,7 @@ class Misc(commands.Cog):
 
     @commands.command(name="status", aliases=["about", "stats"])
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.channel)
-    async def pingu_status(self, ctx):
+    async def pingu_status(self, ctx: commands.Context) -> None:
         """Show some detailed info about Pingu"""
         # Embed header and footer
         py_version = platform.python_version()
@@ -81,7 +81,7 @@ class Misc(commands.Cog):
         total_uptime = f"**{days}** days, **{hrs}** hours,\n" + f"**{mins}** minutes, **{secs}** seconds"
 
         # Embed stats into the message
-        stats_embed = self.bot.create_embed()
+        stats_embed: discord.Embed = self.bot.create_embed()
         stats_embed.set_author(name="Pingu Status", icon_url=ctx.me.display_avatar)
         stats_embed.set_footer(
             text=f"{ping_icon} Ping: {bot_ping:.2f} ms • Running on Python {py_version} and Discord.py {dpy_version}"
@@ -129,7 +129,7 @@ class Misc(commands.Cog):
 
     @commands.command(name="yoink", aliases=["avatar", "pfp"])
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
-    async def yoink(self, ctx: commands.Context, *, user: discord.Member = None):
+    async def yoink(self, ctx: commands.Context, *, user: discord.Member = None) -> None:
         """Steal someone's profile picture in the server
 
         - Omit **[user]** to yoink your own picture
@@ -141,7 +141,7 @@ class Misc(commands.Cog):
             await ctx.send(user.display_avatar)
 
     @yoink.error
-    async def yoink_error_handler(self, ctx: commands.Context, error):
+    async def yoink_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No one with that username or nickname was found."
@@ -153,7 +153,7 @@ class Misc(commands.Cog):
 
     @commands.command(name="invite")
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.channel)
-    async def invite_link(self, ctx: commands.Context):
+    async def invite_link(self, ctx: commands.Context) -> None:
         """Show the invite link for PinguBot"""
         invite_link = (
             "https://discord.com/api/oauth2/authorize?client_id=391016254938546188&permissions=3525696&scope=bot"
@@ -163,7 +163,7 @@ class Misc(commands.Cog):
 
     @commands.command(name="bots")
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.channel)
-    async def show_bots(self, ctx: commands.Context):
+    async def show_bots(self, ctx: commands.Context) -> None:
         """Show all the bots in the server"""
         bot_list = [
             f"{self.get_status_icon(member.status)} {member.mention}"
@@ -172,23 +172,22 @@ class Misc(commands.Cog):
         embed = self.bot.create_embed(title=f"Bots Found: {len(bot_list)}", description="\n".join(bot_list))
         await ctx.send(embed=embed)
 
-    def is_bot(self, member: discord.Member):
+    def is_bot(self, member: discord.Member) -> bool:
         """Helper method to filter out regular Discord users"""
         if member.bot:
             return True
         return False
 
-    def get_status_icon(self, status: discord.Status):
+    def get_status_icon(self, status: discord.Status) -> str:
         """Helper method to display a bot's status"""
         if status in (discord.Status.offline, discord.Status.invisible):
             return "🔴"
         return "🟢"
 
     @commands.Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: discord.Member) -> None:
         """Automation process for a special person"""
         if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
-            await member.edit(nick=os.environ.get("KYOHKO"))
             roles = [
                 member.guild.get_role(868357561592725534),
                 member.guild.get_role(273671436281970689),
@@ -196,6 +195,9 @@ class Misc(commands.Cog):
                 member.guild.get_role(1086394159700643890),
             ]
             await member.add_roles(*roles, atomic=False)
+
+            name: str = os.environ.get("KYOKHO")
+            await member.edit(nick=name)
 
 
 async def setup(bot):
