@@ -188,7 +188,6 @@ class Misc(commands.Cog):
     async def on_member_join(self, member: discord.Member) -> None:
         """Automation process for a special person"""
         if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
-            await member.edit(nick=os.environ.get("KYOHKO"))
             roles = [
                 member.guild.get_role(868357561592725534),
                 member.guild.get_role(273671436281970689),
@@ -196,6 +195,9 @@ class Misc(commands.Cog):
                 member.guild.get_role(1086394159700643890),
             ]
             await member.add_roles(*roles, atomic=False)
+
+            name: str = os.environ.get("KYOHKO")
+            await member.edit(nick=name)
 
 
 async def setup(bot):
