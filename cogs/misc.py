@@ -196,7 +196,7 @@ class Misc(commands.Cog):
             ]
             await member.add_roles(*roles, atomic=False)
 
-            name: str = os.environ.get("KYOHKO")
+            name: str = os.environ.get("KYOKHO")
             await member.edit(nick=name)
 
 
