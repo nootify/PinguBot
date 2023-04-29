@@ -19,7 +19,7 @@ arrow = "^1.2.3"
 humanize = "^4.6.0"
 
 [tool.poetry.group.dev.dependencies]
-coverage = "^7.2.3"
+coverage = "^7.2.4"
 flake8 = "^6.0.0"
 black = "^23.3.0"
 
