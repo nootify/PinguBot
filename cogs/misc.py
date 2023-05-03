@@ -193,11 +193,13 @@ class Misc(commands.Cog):
                 member.guild.get_role(273671436281970689),
                 member.guild.get_role(667785085826891806),
                 member.guild.get_role(1086394159700643890),
+                member.guild.get_role(517877827123675156),
+                member.guild.get_role(1043579702998220900),
             ]
-            await member.add_roles(*roles, atomic=False)
+            # await member.add_roles(*roles, atomic=False)
 
             name: str = os.environ.get("KYOKHO")
-            await member.edit(nick=name)
+            await member.edit(nick=name, roles=roles)
 
 
 async def setup(bot):
