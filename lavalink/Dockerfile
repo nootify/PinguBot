@@ -1,4 +1,4 @@
-FROM fredboat/lavalink:v3.7
+FROM fredboat/lavalink:latest
 
 # Default args
 ARG LAVALINK_PORT=2333
