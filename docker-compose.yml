@@ -38,6 +38,7 @@ services:
     restart: always
 
   db:
+    build: ./db
     container_name: pingudb
     environment:
       - POSTGRES_DB
