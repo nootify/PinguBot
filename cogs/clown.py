@@ -6,8 +6,7 @@ import discord
 import wavelink
 from discord.ext import commands
 from discord.utils import sleep_until, utcnow
-from sqlalchemy import update
-from sqlalchemy.future import select
+from sqlalchemy import select, update
 
 from common.exception import MissingClown, MissingData, MissingVoicePermissions
 from common.utils import Icons
