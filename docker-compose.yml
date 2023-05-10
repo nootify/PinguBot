@@ -11,7 +11,6 @@ services:
       - db
     environment:
       - DATABASE_URL
-      - KYOKHO
       - LAVALINK_HOST
       - LAVALINK_PORT
       - LAVALINK_PASSWORD
@@ -39,6 +38,7 @@ services:
     restart: always
 
   db:
+    build: ./db
     container_name: pingudb
     environment:
       - POSTGRES_DB

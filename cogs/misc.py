@@ -1,4 +1,3 @@
-import os
 import logging
 import platform
 
@@ -7,8 +6,10 @@ import psutil
 from discord.ext import commands
 from discord.utils import utcnow
 from humanize import naturalsize
+from sqlalchemy import select
 
 from common.utils import Icons
+from models import Nickname, async_session
 
 
 class Misc(commands.Cog):
@@ -184,9 +185,38 @@ class Misc(commands.Cog):
             return "🔴"
         return "🟢"
 
+    async def get_or_create(self, session, model, defaults=None, **kwargs):
+        """Helper function to check if a record exists or not and create one if it does not"""
+        instance = await session.execute(select(model).filter_by(**kwargs))
+        instance = instance.scalar_one_or_none()
+        if instance:
+            return instance
+        else:
+            kwargs |= defaults or {}
+            instance = model(**kwargs)
+            try:
+                await session.add(instance)
+            except Exception:
+                instance = await session.execute(select(model).filter_by(**kwargs))
+                instance = instance.scalar_one()
+                return instance
+            else:
+                return instance
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member) -> None:
+        """Automation process for a special person"""
+        await self.bot.wait_until_ready()
+        async with async_session() as session:
+            async with session.begin():
+                result = await self.get_or_create(session, Nickname, guild_id=member.guild.id)
+                result.nicknames[str(member.id)] = member.nick
+                await session.commit()
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         """Automation process for a special person"""
+        await self.bot.wait_until_ready()
         if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
             roles = [
                 member.guild.get_role(868357561592725534),
@@ -198,7 +228,10 @@ class Misc(commands.Cog):
             ]
             # await member.add_roles(*roles, atomic=False)
 
-            name: str = os.environ.get("KYOKHO")
+            async with async_session() as session:
+                async with session.begin():
+                    result = await self.get_or_create(session, Nickname, guild_id=member.guild.id)
+                    name: str = result.nicknames[str(member.id)] if str(member.id) in result.nicknames else None
             await member.edit(nick=name, roles=roles)
 
 

@@ -2,7 +2,9 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import BigInteger, Column, Date, DateTime, Integer, Unicode
+from sqlalchemy.dialects.postgresql import HSTORE
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql.functions import now
 
@@ -27,6 +29,12 @@ class Reminder(Base):
     reminder_time = Column(DateTime(timezone=True))
     user_id = Column(BigInteger)
     channel_id = Column(BigInteger)
+
+
+class Nickname(Base):
+    __tablename__ = "nicknames"
+    guild_id = Column(BigInteger, primary_key=True)
+    nicknames = Column(MutableDict.as_mutable(HSTORE), nullable=False, default={}, server_default="")
 
 
 user = os.environ.get("POSTGRES_USER")
