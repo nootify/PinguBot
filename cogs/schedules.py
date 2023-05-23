@@ -294,8 +294,7 @@ class Schedules(commands.Cog):
             if error.param.name == "course":
                 error_embed.description = f"{Icons.ERROR} Missing course number."
                 await ctx.send(embed=error_embed)
-            return
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
