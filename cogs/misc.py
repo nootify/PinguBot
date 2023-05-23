@@ -128,7 +128,7 @@ class Misc(commands.Cog):
             stats_embed.add_field(name=name, value=value, inline=True)
         await ctx.send(embed=stats_embed)
 
-    @commands.command(name="yoink", aliases=["avatar", "pfp"])
+    @commands.group(name="yoink", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member = None) -> None:
         """Steal someone's profile picture in the server
@@ -141,14 +141,44 @@ class Misc(commands.Cog):
         else:
             await ctx.send(user.display_avatar)
 
+    @yoink.command(name="server")
+    async def yoink_server(self, ctx: commands.Context, asset_type: str = "") -> None:
+        """Steal whatever image you want from the server
+
+        - Available options: icon, banner, and invite
+        """
+        reply_embed = self.bot.create_embed()
+        match asset_type.lower():
+            case "icon":
+                if ctx.guild.icon is not None:
+                    await ctx.send(ctx.guild.icon)
+                else:
+                    reply_embed.description = f"{Icons.WARN} This server has no icon set"
+                    await ctx.send(embed=reply_embed)
+            case "banner":
+                if ctx.guild.banner is not None:
+                    await ctx.send(ctx.guild.banner)
+                else:
+                    reply_embed.description = f"{Icons.WARN} This server has no banner set"
+                    await ctx.send(embed=reply_embed)
+            case "invite":
+                if ctx.guild.splash is not None:
+                    await ctx.send(ctx.guild.splash)
+                else:
+                    reply_embed.description = f"{Icons.WARN} This server has no invite background set"
+                    await ctx.send(embed=reply_embed)
+            case _:
+                reply_embed.description = f"{Icons.ERROR} Unknown option (or it wasn't given). Use `{self.bot.command_prefix}help yoink server` to view all available server assets."
+                await ctx.send(embed=reply_embed)
+
     @yoink.error
+    @yoink_server.error
     async def yoink_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No one with that username or nickname was found."
             await ctx.send(embed=error_embed)
-            return
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
