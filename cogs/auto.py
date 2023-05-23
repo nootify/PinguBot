@@ -111,14 +111,13 @@ class Auto(commands.Cog):
             if error.param.name == "when":
                 error_embed.description = f"{Icons.ERROR} Missing time offset."
                 await ctx.send(embed=error_embed)
-            if error.param.name == "to":
+            elif error.param.name == "to":
                 error_embed.description = f"{Icons.ERROR} Missing `to` keyword."
                 await ctx.send(embed=error_embed)
-            if error.param.name == "text":
+            elif error.param.name == "text":
                 error_embed.description = f"{Icons.ERROR} Missing text to remind you about."
                 await ctx.send(embed=error_embed)
-            return
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
@@ -185,8 +184,7 @@ class Auto(commands.Cog):
             if error.param.name == "reminder_id":
                 error_embed.description = f"{Icons.ERROR} Missing reminder id to delete"
                 await ctx.send(embed=error_embed)
-            return
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
@@ -237,7 +235,7 @@ class Auto(commands.Cog):
         if isinstance(error, commands.MissingRequiredArgument):
             error_embed.description = f"{Icons.ERROR} Missing `{error.param.name}` to send message to"
             await ctx.send(embed=error_embed)
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
@@ -362,7 +360,6 @@ class Auto(commands.Cog):
                 self.sent_message = await message.channel.send(
                     f"{message_deleter.mention} stop deleting my message :confused:"
                 )
-            return
 
 
 async def setup(bot):

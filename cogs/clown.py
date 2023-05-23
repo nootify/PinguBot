@@ -147,8 +147,7 @@ class ClownWeek(commands.Cog):
         if isinstance(error, (MissingClown, MissingData)):
             error_embed.description = f"{Icons.WARN} {error}"
             await ctx.send(embed=error_embed)
-            return
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
 
@@ -303,16 +302,13 @@ class ClownWeek(commands.Cog):
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No user with that Discord username or server nickname was found."
             await ctx.send(embed=error_embed)
-            return
         elif isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "user":
                 error_embed.description = f"{Icons.ERROR} Missing user to nominate."
                 await ctx.send(embed=error_embed)
-            return
         elif isinstance(error, MissingData):
             error_embed.description = f"{Icons.WARN} {error}"
             await ctx.send(embed=error_embed)
-            return
         elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
@@ -368,9 +364,7 @@ class ClownWeek(commands.Cog):
         if isinstance(error, (MissingClown, MissingData, MissingVoicePermissions)):
             error_embed.description = f"{Icons.WARN} {error}"
             await ctx.send(embed=error_embed, delete_after=3)
-            return
-
-        if isinstance(error, commands.BadArgument):
+        elif isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed, delete_after=3)
 

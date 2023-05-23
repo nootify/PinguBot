@@ -1,3 +1,3 @@
 FROM postgres:latest
 
-COPY setup.sql /docker-entrypoint-initdb.d
+COPY setup.sql /docker-entrypoint-initdb.d/
