@@ -8,8 +8,8 @@ from discord.ext import commands, tasks
 from discord.utils import sleep_until, utcnow
 from pytimeparse.timeparse import timeparse
 from pytz import timezone
-from sqlalchemy import delete
-from sqlalchemy.future import select
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import Icons
 from models import Reminder, async_session
@@ -84,6 +84,7 @@ class Auto(commands.Cog):
         parsed_offset = timedelta(seconds=parsed_time)
         remind_offset = utcnow() + parsed_offset
 
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 new_reminder = Reminder(
@@ -99,14 +100,14 @@ class Auto(commands.Cog):
             )
 
         readable_offset = arrow.get(remind_offset).humanize()
-        embed = self.bot.create_embed(
+        embed: discord.Embed = self.bot.create_embed(
             description=f"{Icons.ALERT} {ctx.author.mention}, you will be reminded about this {readable_offset}"
         )
         await ctx.send(embed=embed)
 
     @remind.error
     async def remind_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "when":
                 error_embed.description = f"{Icons.ERROR} Missing time offset."
@@ -129,14 +130,15 @@ class Auto(commands.Cog):
         - It will only show reminders that are still active
         - Reminders will be removed if the bot is unable to access the channel
         """
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 result = await session.execute(
                     select(Reminder).where(Reminder.user_id == ctx.author.id).order_by(Reminder.reminder_time).limit(10)
                 )
-                reminders = result.scalars().all()
+                reminders: list[Reminder] = result.scalars().all()
 
-        embed = self.bot.create_embed(title="Reminders")
+        embed: discord.Embed = self.bot.create_embed(title="Reminders")
         if not reminders:
             embed.description = f"{Icons.ALERT} No reminders were found."
         for reminder in reminders:
@@ -147,12 +149,13 @@ class Auto(commands.Cog):
     @remind.command(name="clear")
     async def clear_reminders(self, ctx: commands.Context) -> None:
         """Clear all of the reminders you made"""
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 await session.execute(delete(Reminder).where(Reminder.user_id == ctx.author.id))
                 await session.commit()
 
-        embed = self.bot.create_embed(description=f"{Icons.ALERT} All reminders deleted.")
+        embed: discord.Embed = self.bot.create_embed(description=f"{Icons.ALERT} All reminders deleted.")
         await ctx.send(embed=embed)
 
     @remind.command(name="delete", aliases=["del", "remove", "rm", "cancel"])
@@ -166,6 +169,7 @@ class Auto(commands.Cog):
         except ValueError:
             raise commands.BadArgument("Reminder id must be a number.")
 
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 reminder = await session.execute(
@@ -174,12 +178,12 @@ class Auto(commands.Cog):
         if not reminder:
             raise commands.BadArgument("Reminder with that id was not found.")
 
-        embed = self.bot.create_embed(description=f"{Icons.ALERT} Reminder deleted succesfully.")
+        embed: discord.Embed = self.bot.create_embed(description=f"{Icons.ALERT} Reminder deleted succesfully.")
         await ctx.send(embed=embed)
 
     @delete_reminder.error
     async def delete_reminder_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "reminder_id":
                 error_embed.description = f"{Icons.ERROR} Missing reminder id to delete"
@@ -198,7 +202,7 @@ class Auto(commands.Cog):
         snipe_details = f"{Icons.ALERT} Sending snipe to guild '{self.snipe_location.guild.name}'"
         +f" (id: {self.snipe_location.guild.id}) on channel '{self.snipe_location.name}'"
         +f" (id: {self.snipe_location.id}) at `{self.snipe_time}`."
-        embed = self.bot.create_embed(description=snipe_details)
+        embed: discord.Embed = self.bot.create_embed(description=snipe_details)
         await ctx.send(embed=embed)
 
     @snipe_info.error
@@ -226,12 +230,12 @@ class Auto(commands.Cog):
         await self.setup_snipe()
         snipe_details = f"{Icons.ALERT} Sending snipe to guild '{sniped_guild.name}' (id: {sniped_guild.id})"
         +f" on channel '{sniped_channel.name}' (id: {sniped_channel.id})."
-        embed = self.bot.create_embed(description=snipe_details)
+        embed: discord.Embed = self.bot.create_embed(description=snipe_details)
         await ctx.send(embed=embed)
 
     @remote_snipe.error
     async def remote_snipe_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             error_embed.description = f"{Icons.ERROR} Missing `{error.param.name}` to send message to"
             await ctx.send(embed=error_embed)
@@ -244,7 +248,7 @@ class Auto(commands.Cog):
     async def cancel_snipe(self, ctx: commands.Context) -> None:
         """Cancel the snipe if it exists"""
         if self.send_snipe.is_running():
-            embed = self.bot.create_embed(description=f"{Icons.SUCCESS} Stopped snipe")
+            embed: discord.Embed = self.bot.create_embed(description=f"{Icons.SUCCESS} Stopped snipe")
             await ctx.send(embed=embed)
             self.send_snipe.cancel()
         else:
@@ -252,7 +256,7 @@ class Auto(commands.Cog):
 
     @cancel_snipe.error
     async def cancel_snipe_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.BadArgument):
             error_embed.description = f"{Icons.ERROR} {error}"
             await ctx.send(embed=error_embed)
@@ -260,10 +264,11 @@ class Auto(commands.Cog):
     @tasks.loop(minutes=30)
     async def check_reminders(self) -> None:
         check_time = utcnow() + timedelta(minutes=30)
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 result = await session.execute(select(Reminder).where(Reminder.reminder_time <= check_time))
-                rows = result.scalars().all()
+                rows: list[Reminder] = result.scalars().all()
         for row in rows:
             if row.reminder_id not in Auto.QUEUED_REMINDERS:
                 Auto.QUEUED_REMINDERS[row.reminder_id] = self.bot.loop.create_task(self.setup_reminder(row))
@@ -271,6 +276,7 @@ class Auto(commands.Cog):
     async def setup_reminder(self, reminder: Reminder) -> None:
         await sleep_until(reminder.reminder_time)
 
+        session: AsyncSession
         ping = self.bot.get_user(reminder.user_id)
         channel = self.bot.get_channel(reminder.channel_id)
         if not ping or not channel:
@@ -280,7 +286,7 @@ class Auto(commands.Cog):
                     await session.commit()
             return
 
-        embed = self.bot.create_embed(title="Don't forget to:", description=reminder.reminder_text)
+        embed: discord.Embed = self.bot.create_embed(title="Don't forget to:", description=reminder.reminder_text)
         try:
             await channel.send(content=ping.mention, embed=embed)
         except discord.HTTPException:
@@ -362,5 +368,5 @@ class Auto(commands.Cog):
                 )
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Auto(bot))

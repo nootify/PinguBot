@@ -39,11 +39,11 @@ class Schedules(commands.Cog):
 
     async def get_queued_schedule(self) -> None:
         """Helper function to get schedule data from the queue"""
-        semester_code = await Schedules.QUEUED_CODES.get()
+        semester_code: str = await Schedules.QUEUED_CODES.get()
         if semester_code not in Schedules.LAST_UPDATE:
             Schedules.LAST_UPDATE[semester_code] = datetime.fromtimestamp(0)
 
-        time_difference = datetime.utcnow() - Schedules.LAST_UPDATE[semester_code]
+        time_difference: timedelta = datetime.utcnow() - Schedules.LAST_UPDATE[semester_code]
         if time_difference >= timedelta(hours=1):
             Schedules.LAST_UPDATE[semester_code] = datetime.utcnow()
             await self.get_semester_data(semester_code)
@@ -143,7 +143,7 @@ class Schedules(commands.Cog):
                 )
         return parsed_sections
 
-    def get_meeting_times(self, data, course_num: str, section_num: str) -> str:
+    def get_meeting_times(self, data: list | dict, course_num: str, section_num: str) -> str:
         """Helper function that formats the meeting times of a section."""
         output = "• N/A"
         # Format times to standard 12-hour instead of 24-hour
@@ -182,7 +182,7 @@ class Schedules(commands.Cog):
             " / ".join(course_titles),
         )
         if len(sections) <= max_limit:
-            schedule_embed = self.bot.create_embed(
+            schedule_embed: discord.Embed = self.bot.create_embed(
                 title=header,
                 timestamp=Schedules.LAST_UPDATE[semester],
             )
@@ -192,13 +192,13 @@ class Schedules(commands.Cog):
 
             return [schedule_embed]
         else:
-            schedule_embed = self.bot.create_embed(
+            schedule_embed: discord.Embed = self.bot.create_embed(
                 title=header,
             )
             for section in sections[:max_limit]:
                 self.setup_embed(schedule_embed, course, section)
 
-            continued_embed = self.bot.create_embed(
+            continued_embed: discord.Embed = self.bot.create_embed(
                 timestamp=Schedules.LAST_UPDATE[semester],
             )
             continued_embed.set_footer(text="Last updated")
@@ -233,14 +233,16 @@ class Schedules(commands.Cog):
 
     @commands.command(name="course")
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.member)
-    async def course_info(self, ctx, course: str, *, semester: str = None) -> None:
+    async def course_info(self, ctx: commands.Context, course: str, *, semester: str = None) -> None:
         """Get details about a course at NJIT
 
         - You can pick a specific semester by putting a year and season (e.g. 2017 fall)
         """
         # Ensure that the schedule data has been retrieved and is loaded in memory
         if not Schedules.LATEST_SEMESTER:
-            embed = self.bot.create_embed(description=f"{Icons.WARN} Schedule data not available yet. Try again later.")
+            embed: discord.Embed = self.bot.create_embed(
+                description=f"{Icons.WARN} Schedule data not available yet. Try again later."
+            )
             await ctx.send(embed=embed)
             return
 
@@ -274,7 +276,7 @@ class Schedules(commands.Cog):
         )
 
         # Validate sections for the course
-        info_embed = self.bot.create_embed(description=f"{Icons.ALERT} Getting schedule data...")
+        info_embed: discord.Embed = self.bot.create_embed(description=f"{Icons.ALERT} Getting schedule data...")
         info_message = await ctx.send(embed=info_embed)
         found_sections = await self.get_course_sections(picked_course, picked_semester)
         if not found_sections:
@@ -289,7 +291,7 @@ class Schedules(commands.Cog):
 
     @course_info.error
     async def course_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MissingRequiredArgument):
             if error.param.name == "course":
                 error_embed.description = f"{Icons.ERROR} Missing course number."
@@ -299,5 +301,5 @@ class Schedules(commands.Cog):
             await ctx.send(embed=error_embed)
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Schedules(bot))
