@@ -15,26 +15,26 @@ Base = declarative_base()
 
 class Clown(Base):
     __tablename__ = "clowns"
-    guild_id = Column(BigInteger, primary_key=True)
-    clown_id = Column(BigInteger)
-    previous_clown_id = Column(BigInteger)
-    nomination_date = Column(Date, server_default=now(), server_onupdate=now())
-    join_time = Column(DateTime(timezone=True), server_default=now(), server_onupdate=now())
+    guild_id: int = Column(BigInteger, primary_key=True)
+    clown_id: int = Column(BigInteger)
+    previous_clown_id: int = Column(BigInteger)
+    nomination_date: Date = Column(Date, server_default=now(), server_onupdate=now())
+    join_time: DateTime = Column(DateTime(timezone=True), server_default=now(), server_onupdate=now())
 
 
 class Reminder(Base):
     __tablename__ = "reminders"
-    reminder_id = Column(Integer, primary_key=True)
-    reminder_text = Column(Unicode)
-    reminder_time = Column(DateTime(timezone=True))
-    user_id = Column(BigInteger)
-    channel_id = Column(BigInteger)
+    reminder_id: int = Column(Integer, primary_key=True)
+    reminder_text: str = Column(Unicode)
+    reminder_time: DateTime = Column(DateTime(timezone=True))
+    user_id: int = Column(BigInteger)
+    channel_id: int = Column(BigInteger)
 
 
 class Nickname(Base):
     __tablename__ = "nicknames"
-    guild_id = Column(BigInteger, primary_key=True)
-    nicknames = Column(MutableDict.as_mutable(HSTORE), nullable=False, default={}, server_default="")
+    guild_id: int = Column(BigInteger, primary_key=True)
+    nicknames: dict = Column(MutableDict.as_mutable(HSTORE), nullable=False, default={}, server_default="")
 
 
 user = os.environ.get("POSTGRES_USER")
