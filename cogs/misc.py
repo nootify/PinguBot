@@ -7,6 +7,7 @@ from discord.ext import commands
 from discord.utils import utcnow
 from humanize import naturalsize
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import Icons
 from models import Nickname, async_session
@@ -147,7 +148,7 @@ class Misc(commands.Cog):
 
         - Available options: icon, banner, and invite
         """
-        reply_embed = self.bot.create_embed()
+        reply_embed: discord.Embed = self.bot.create_embed()
         match asset_type.lower():
             case "icon":
                 if ctx.guild.icon is not None:
@@ -174,7 +175,7 @@ class Misc(commands.Cog):
     @yoink.error
     @yoink_server.error
     async def yoink_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No one with that username or nickname was found."
             await ctx.send(embed=error_embed)
@@ -189,7 +190,7 @@ class Misc(commands.Cog):
         invite_link = (
             "https://discord.com/api/oauth2/authorize?client_id=391016254938546188&permissions=3525696&scope=bot"
         )
-        embed = self.bot.create_embed(description=f"Invite me by clicking [here]({invite_link})")
+        embed: discord.Embed = self.bot.create_embed(description=f"Invite me by clicking [here]({invite_link})")
         await ctx.send(embed=embed)
 
     @commands.command(name="bots")
@@ -200,7 +201,9 @@ class Misc(commands.Cog):
             f"{self.get_status_icon(member.status)} {member.mention}"
             for member in filter(self.is_bot, ctx.guild.members)
         ]
-        embed = self.bot.create_embed(title=f"Bots Found: {len(bot_list)}", description="\n".join(bot_list))
+        embed: discord.Embed = self.bot.create_embed(
+            title=f"Bots Found: {len(bot_list)}", description="\n".join(bot_list)
+        )
         await ctx.send(embed=embed)
 
     def is_bot(self, member: discord.Member) -> bool:
@@ -215,7 +218,7 @@ class Misc(commands.Cog):
             return "🔴"
         return "🟢"
 
-    async def get_or_create(self, session, model, defaults=None, **kwargs):
+    async def get_or_create(self, session: AsyncSession, model, defaults=None, **kwargs) -> Nickname:
         """Helper function to check if a record exists or not and create one if it does not"""
         instance = await session.execute(select(model).filter_by(**kwargs))
         instance = instance.scalar_one_or_none()
@@ -237,6 +240,8 @@ class Misc(commands.Cog):
     async def on_member_remove(self, member: discord.Member) -> None:
         """Automation process for a special person"""
         await self.bot.wait_until_ready()
+
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 result = await self.get_or_create(session, Nickname, guild_id=member.guild.id)
@@ -247,6 +252,7 @@ class Misc(commands.Cog):
     async def on_member_join(self, member: discord.Member) -> None:
         """Automation process for a special person"""
         await self.bot.wait_until_ready()
+
         if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
             roles = [
                 member.guild.get_role(868357561592725534),
@@ -258,12 +264,13 @@ class Misc(commands.Cog):
             ]
             # await member.add_roles(*roles, atomic=False)
 
+            session: AsyncSession
             async with async_session() as session:
                 async with session.begin():
                     result = await self.get_or_create(session, Nickname, guild_id=member.guild.id)
-                    name: str = result.nicknames[str(member.id)] if str(member.id) in result.nicknames else None
+                    name: str | None = result.nicknames[str(member.id)] if str(member.id) in result.nicknames else None
             await member.edit(nick=name, roles=roles)
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Misc(bot))
