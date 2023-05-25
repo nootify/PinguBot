@@ -7,6 +7,7 @@ import wavelink
 from discord.ext import commands
 from discord.utils import sleep_until, utcnow
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.exception import MissingClown, MissingData, MissingVoicePermissions
 from common.utils import Icons
@@ -61,6 +62,7 @@ class ClownWeek(commands.Cog):
     async def update_cache(self) -> None:
         """Update the in-memory cache of the clown data"""
         await self.bot.wait_until_ready()
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 result = await session.execute(select(Clown))
@@ -136,14 +138,14 @@ class ClownWeek(commands.Cog):
             raise MissingClown("The clown is no longer in the server.")
         else:
             time_spent = utcnow().date() - clown_data.nomination_date
-            embed = self.bot.create_embed(
+            embed: discord.Embed = self.bot.create_embed(
                 description=f"{Icons.ALERT} The clown is {server_clown.mention} (clowned {time_spent.days} days ago)."
             )
             await ctx.send(embed=embed)
 
     @clown_info.error
     async def clown_info_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData)):
             error_embed.description = f"{Icons.WARN} {error}"
             await ctx.send(embed=error_embed)
@@ -154,7 +156,7 @@ class ClownWeek(commands.Cog):
     @clown_info.command(name="nominate")
     async def old_nominate(self, ctx: commands.Context) -> None:
         """Use the new nominate command"""
-        embed = self.bot.create_embed(
+        embed: discord.Embed = self.bot.create_embed(
             description=f"{Icons.ALERT} Use `{ctx.prefix}nominate ...` instead of `{ctx.prefix}clown nominate ...`"
         )
         await ctx.send(embed=embed)
@@ -162,11 +164,11 @@ class ClownWeek(commands.Cog):
     def create_poll_embed(self, ctx: commands.Context, user: discord.Member, reason: str, delay: int) -> discord.Embed:
         """A template to create the nomination poll"""
         poll_body_text = f"{user.mention} {reason}"
-        poll_embed = self.bot.create_embed(description=poll_body_text)
+        poll_embed: discord.Embed = self.bot.create_embed(description=poll_body_text)
         poll_embed.set_author(name="Clown of the Week Nomination")
         poll_embed.set_thumbnail(url=user.display_avatar)
         poll_embed.set_footer(
-            text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.display_avatar
+            text=f"Nominated by: {ctx.author} • Voting ends in: {delay} seconds", icon_url=ctx.author.guild_avatar
         )
         return poll_embed
 
@@ -209,7 +211,9 @@ class ClownWeek(commands.Cog):
         # Set poll semaphore
         nominator = ctx.author
         nomination_time = 30  # seconds
-        embed = self.bot.create_embed(description=f"{nominator.mention} has {nomination_time} seconds to give a reason")
+        embed: discord.Embed = self.bot.create_embed(
+            description=f"{nominator.mention} has {nomination_time} seconds to give a reason"
+        )
         ClownWeek.NOMINATION_POLLS[ctx.guild.id] = await ctx.send(embed=embed)
 
         def confirm_message(msg):
@@ -258,7 +262,7 @@ class ClownWeek(commands.Cog):
 
         if total_votes < 0 or user_votes["✅"] < 0 or user_votes["❌"] < 0:
             ClownWeek.NOMINATION_POLLS.pop(ctx.guild.id)
-            embed = self.bot.create_embed(
+            embed: discord.Embed = self.bot.create_embed(
                 description=f"{Icons.HMM} Someone manipulated the votes. Canceling nomination."
             )
             await ctx.send(embed=embed)
@@ -276,6 +280,7 @@ class ClownWeek(commands.Cog):
             )
 
         # Change the clown because enough votes were in favor of the nomination
+        session: AsyncSession
         async with async_session() as session:
             async with session.begin():
                 if clown_data is None:
@@ -290,7 +295,9 @@ class ClownWeek(commands.Cog):
         await self.update_cache()
 
         # Display who the new clown is
-        result_embed = self.bot.create_embed(description=f"{Icons.ALERT} The clown is now {user.mention}.")
+        result_embed: discord.Embed = self.bot.create_embed(
+            description=f"{Icons.ALERT} The clown is now {user.mention}."
+        )
         await ctx.send(embed=result_embed)
 
         # Undo semaphore
@@ -298,7 +305,7 @@ class ClownWeek(commands.Cog):
 
     @nominate_clown.error
     async def nominate_clown_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, commands.MemberNotFound):
             error_embed.description = f"{Icons.ERROR} No user with that Discord username or server nickname was found."
             await ctx.send(embed=error_embed)
@@ -360,7 +367,7 @@ class ClownWeek(commands.Cog):
 
     @honk.error
     async def honk_error_handler(self, ctx: commands.Context, error) -> None:
-        error_embed = self.bot.create_embed()
+        error_embed: discord.Embed = self.bot.create_embed()
         if isinstance(error, (MissingClown, MissingData, MissingVoicePermissions)):
             error_embed.description = f"{Icons.WARN} {error}"
             await ctx.send(embed=error_embed, delete_after=3)
@@ -372,7 +379,7 @@ class ClownWeek(commands.Cog):
     @commands.is_owner()
     async def disconnect(self, ctx: commands.Context) -> None:
         """Disconnect Pingu from a voice channel for debugging purposes"""
-        embed = self.bot.create_embed()
+        embed: discord.Embed = self.bot.create_embed()
         player = ctx.guild.voice_client
         if player and player.is_connected():
             await player.disconnect()
@@ -449,6 +456,7 @@ class ClownWeek(commands.Cog):
             # Play the audio if all conditions are met
             if not player and len(after.channel.members) >= 3 and self.check_voice_permissions(after.channel):
                 # Only update the join time when it can connect and play
+                session: AsyncSession
                 async with async_session() as session:
                     async with session.begin():
                         await session.execute(
@@ -493,5 +501,5 @@ class ClownWeek(commands.Cog):
                     )
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(ClownWeek(bot))
