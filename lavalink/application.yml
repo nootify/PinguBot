@@ -1,9 +1,9 @@
 server: # REST and WS server
-  port: LAVALINK_PORT
+  # port: LAVALINK_PORT
   address: 0.0.0.0
 lavalink:
   server:
-    password: LAVALINK_PASSWORD
+    # password: LAVALINK_PASSWORD
     sources:
       youtube: true
       bandcamp: false
@@ -80,5 +80,5 @@ logging:
 
   logback:
     rollingpolicy:
-      max-file-size: 1GB
+      max-file-size: 100MB
       max-history: 30
