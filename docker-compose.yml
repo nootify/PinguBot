@@ -7,8 +7,10 @@ services:
     command:
       - scripts/start.sh
     depends_on:
-      - audio
-      - db
+      audio:
+        condition: service_started
+      db:
+        condition: service_healthy
     environment:
       - DATABASE_URL
       - LAVALINK_HOST
@@ -17,34 +19,46 @@ services:
       - PINGU_TOKEN
       - POSTGRES_HOST
       - POSTGRES_PORT
+      - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
     image: pingubot:latest
     networks:
       - bot-network
-    restart: on-failure
+    restart: unless-stopped
     user: pingu:pingu
 
   audio:
-    build:
-      context: ./lavalink
-      args:
-        - LAVALINK_PORT
-        - LAVALINK_PASSWORD
+    # build:
+    #   context: ./lavalink
+    #   args:
+    #     - LAVALINK_PORT
+    #     - LAVALINK_PASSWORD
     container_name: pingulink
-    image: pingulink:latest
+    environment:
+      - SERVER_PORT=${LAVALINK_PORT}
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD}
+    # image: pingulink:latest
+    image: fredboat/lavalink:latest
     networks:
       - bot-network
-    restart: always
+    restart: unless-stopped
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
+    # healthcheck:
+    #   test: ['CMD-SHELL', 'curl localhost:${SERVER_PORT}']
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 10
 
   db:
-    build: ./db
+    # build: ./db
     container_name: pingudb
     environment:
       - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
-    image: postgres:latest
+    image: postgres:14
     # ports:
     #   - "5432:5432"
     networks:
@@ -53,6 +67,12 @@ services:
     user: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 networks:
   bot-network:
