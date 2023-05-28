@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Wait until both services are up and the bot can get a connection
-while ! nc -z "$POSTGRES_HOST" "$POSTGRES_PORT" ; do
-    sleep 1;
-    echo "Waiting for Postgres ..."
-done
+# Wait until dependent services are up and the bot can get a connection
 while ! nc -z "$LAVALINK_HOST" "$LAVALINK_PORT" ; do
     sleep 1;
-    echo "Waiting for Lavalink ..."
+    echo "Lavalink unavailable - waiting until resource is ready"
 done
+echo "All services ready"
 python pingu.py
