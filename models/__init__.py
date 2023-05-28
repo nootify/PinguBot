@@ -39,11 +39,15 @@ class Nickname(Base):
 
 user = os.environ.get("POSTGRES_USER")
 pw = os.environ.get("POSTGRES_PASSWORD")
+db = os.environ.get("POSTGRES_DB")
 db_host = os.environ.get("POSTGRES_HOST")
 db_port = os.environ.get("POSTGRES_PORT")
-database_url = os.environ.get("DATABASE_URL") or f"postgresql+asyncpg://{user}:{pw}@{db_host}{db_port}/{user}"
+database_url = os.environ.get("DATABASE_URL") or f"postgresql+asyncpg://{user}:{pw}@{db_host}:{db_port}/{db}"
 if database_url and database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif os.environ.get("DATABASE_URL") is None:
+    if None in (user, pw, db, db_host, db_port):
+        raise ValueError("Missing database environment variable")
 
 engine = create_async_engine(
     database_url,

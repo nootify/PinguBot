@@ -19,6 +19,7 @@ LAVALINK_PASSWORD=youshallnotpass
 # only necessary for local db setup
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
+POSTGRES_DB=postgres
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<password here>
 
