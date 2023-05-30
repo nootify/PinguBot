@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pingubot"
-version = "2.1"
+version = "2.2"
 description = ""
 authors = ["nootify"]
 
