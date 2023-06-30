@@ -253,7 +253,7 @@ class Misc(commands.Cog):
         """Automation process for a special person"""
         await self.bot.wait_until_ready()
 
-        if member.guild.id == 143909103951937536 and member.id == 1069703628912332860:
+        if member.guild.id == 143909103951937536 and member.id in (1069703628912332860, 996500705617657978):
             roles = [
                 member.guild.get_role(868357561592725534),
                 member.guild.get_role(273671436281970689),
