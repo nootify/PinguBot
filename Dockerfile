@@ -34,7 +34,7 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         gcc \
         python3-dev \
-        netcat && \
+        netcat-traditional && \
     rm -rf /var/lib/apt/lists/* && \
     \
     # add in the Pingu user and group
