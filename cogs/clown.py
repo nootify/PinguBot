@@ -51,13 +51,31 @@ class ClownWeek(commands.Cog):
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEventPayload) -> None:
-        if payload.reason == "FINISHED":
+        event = payload.event.name
+        reason = payload.reason
+        if event == "END" and reason == "FINISHED":
             await payload.player.disconnect()
 
     @commands.Cog.listener()
     async def on_wavelink_track_event(self, payload: wavelink.TrackEventPayload) -> None:
-        self.log.error("Wavelink %s %s", payload.event.name, payload.reason)
-        await payload.player.disconnect()
+        event = payload.event.name
+        reason = payload.reason
+        if event in ("START", "END"):
+            self.log_helper(event, reason, False)
+        else:
+            self.log_helper(event, reason, True)
+
+    def log_helper(self, event: str, reason: str, is_error: bool) -> None:
+        if is_error:
+            if reason:
+                self.log.error("Wavelink: %s - %s", event, reason)
+            else:
+                self.log.error("Wavelink: %s", event)
+        else:
+            if reason:
+                self.log.info("Wavelink: %s - %s", event, reason)
+            else:
+                self.log.info("Wavelink: %s", event)
 
     async def update_cache(self) -> None:
         """Update the in-memory cache of the clown data"""
@@ -449,7 +467,7 @@ class ClownWeek(commands.Cog):
                 member.id,
                 last_joined.total_seconds(),
             )
-            if last_joined <= timedelta(minutes=60):
+            if last_joined < timedelta(minutes=60):
                 self.log.debug("Potential spam connect by '%s' in '%s'", member.id, member.guild.id)
                 return
 
