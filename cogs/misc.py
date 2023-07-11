@@ -132,15 +132,60 @@ class Misc(commands.Cog):
     @commands.group(name="yoink", invoke_without_command=True)
     @commands.cooldown(rate=1, per=1.0, type=commands.BucketType.member)
     async def yoink(self, ctx: commands.Context, *, user: discord.Member = None) -> None:
-        """Steal someone's profile picture in the server
+        """Steal a picture from someone's profile or the server itself
 
-        - Omit **[user]** to yoink your own picture
+        - Omit **[user]** to yoink your own profile picture
         - You can either ping someone or type a Discord username/server nickname exactly without the @
         """
         if not user:
             await ctx.send(ctx.author.display_avatar)
         else:
             await ctx.send(user.display_avatar)
+
+    @yoink.command(name="banner")
+    @commands.cooldown(rate=1, per=10.0, type=commands.BucketType.guild)
+    async def yoink_banner(self, ctx: commands.Context, *, user: discord.Member = None) -> None:
+        """Steal someone's banner (but you can't steal the server profile banner)
+
+        - Omit **[user]** to yoink your own banner
+        - You can either ping someone or type a Discord username/server nickname exactly without the @
+        """
+        reply_embed: discord.Embed = self.bot.create_embed()
+        if not user:
+            author = await self.bot.fetch_user(ctx.author.id)
+            if author.banner:
+                await ctx.send(author.banner)
+            else:
+                reply_embed.description = f"{Icons.WARN} You have no banner set"
+                await ctx.send(embed=reply_embed)
+        else:
+            found_user = await self.bot.fetch_user(user.id)
+            if found_user.banner:
+                await ctx.send(found_user.banner)
+            else:
+                reply_embed.description = f"{Icons.WARN} This user has no banner set"
+                await ctx.send(embed=reply_embed)
+
+    @yoink.command(name="profile")
+    async def yoink_profile(self, ctx: commands.Context, *, user: discord.Member = None) -> None:
+        """Steal someone's user profile picture
+
+        - Omit **[user]** to yoink your own banner
+        - You can either ping someone or type a Discord username/server nickname exactly without the @
+        """
+        reply_embed: discord.Embed = self.bot.create_embed()
+        if not user:
+            if ctx.author.avatar:
+                await ctx.send(ctx.author.avatar)
+            else:
+                reply_embed.description = f"{Icons.WARN} You have no user profile picture set"
+                await ctx.send(embed=reply_embed)
+        else:
+            if user.avatar:
+                await ctx.send(user.avatar)
+            else:
+                reply_embed.description = f"{Icons.WARN} This user has no profile picture set"
+                await ctx.send(embed=reply_embed)
 
     @yoink.command(name="server")
     async def yoink_server(self, ctx: commands.Context, asset_type: str = "") -> None:
@@ -173,6 +218,8 @@ class Misc(commands.Cog):
                 await ctx.send(embed=reply_embed)
 
     @yoink.error
+    @yoink_banner.error
+    @yoink_profile.error
     @yoink_server.error
     async def yoink_error_handler(self, ctx: commands.Context, error) -> None:
         error_embed: discord.Embed = self.bot.create_embed()
