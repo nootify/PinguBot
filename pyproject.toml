@@ -19,7 +19,7 @@ arrow = "^1.2.3"
 humanize = "^4.7.0"
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^6.0.0"
+flake8 = "^6.1.0"
 black = "^23.7.0"
 
 [tool.black]
