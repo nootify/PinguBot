@@ -1173,13 +1173,13 @@ files = [
 
 [[package]]
 name = "wavelink"
-version = "2.6.1"
+version = "2.6.2"
 description = "A robust and powerful Lavalink wrapper for discord.py"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "wavelink-2.6.1-py3-none-any.whl", hash = "sha256:771c807472e6ccf1f0f93c40ce87016903d513ac945f629b1d4da7e6967a81ae"},
-    {file = "wavelink-2.6.1.tar.gz", hash = "sha256:782e615df95735a2a4daf51f4e72d4f0dd203c356122043eeb5fc3ab923ee5cc"},
+    {file = "wavelink-2.6.2-py3-none-any.whl", hash = "sha256:7609eb2bfdd24ec9abd1ea797e5c9923a4c466a4af353ce29bd414a3ad8b5c54"},
+    {file = "wavelink-2.6.2.tar.gz", hash = "sha256:e80513b560bf183333b2886fd7673d45f4b3ec8955072a12cb19bf0fece1d3b4"},
 ]
 
 [package.dependencies]
@@ -1291,4 +1291,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4"
-content-hash = "e39de05a55177c580eff03d8ec1b8d1ae9620ea983da2ac120d7291c47bc1de0"
+content-hash = "ebc8db55da03e12bc0a3433542853cfe345ef2397c55c441edea8ed5c79e4bb7"
