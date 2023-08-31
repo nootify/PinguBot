@@ -7,16 +7,16 @@ authors = ["nootify"]
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
 python-dotenv = "^1.0.0"
-"discord.py" = {extras = ["voice"], version = "^2.3.1"}
+"discord.py" = {extras = ["voice"], version = "^2.3.2"}
 jishaku = "^2.5.1"
-wavelink = "^2.6.1"
+wavelink = "^2.6.4"
 psutil = "^5.9.5"
 pytz = "^2023.3"
 pytimeparse = "^1.1.8"
-SQLAlchemy = "^2.0.19"
+SQLAlchemy = "^2.0.20"
 asyncpg = "^0.28.0"
 arrow = "^1.2.3"
-humanize = "^4.7.0"
+humanize = "^4.8.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^6.1.0"
