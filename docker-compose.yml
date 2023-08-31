@@ -27,7 +27,7 @@ services:
       com.centurylinklabs.watchtower.enable: "false"
     networks:
       - bot-network
-    restart: unless-stopped
+    restart: always
     user: pingu:pingu
 
   audio:
@@ -44,7 +44,7 @@ services:
     image: fredboat/lavalink:latest
     networks:
       - bot-network
-    restart: unless-stopped
+    restart: always
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
     # healthcheck:
