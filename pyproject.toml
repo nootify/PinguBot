@@ -20,7 +20,7 @@ humanize = "^4.8.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^6.1.0"
-black = "^23.7.0"
+black = "^23.9.1"
 
 [tool.black]
 line-length = 120
