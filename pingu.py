@@ -72,8 +72,8 @@ class Pingu(commands.Bot):
 
     async def on_message(self, message: discord.Message) -> None:
         """Actions that are performed for any message that the bot can see."""
-        # Ignore DMs
-        if not message.guild:
+        # Ignore DMs or other bots
+        if not message.guild or message.author.bot:
             return
 
         # This makes sure the owner_id gets set and the query is only run once
