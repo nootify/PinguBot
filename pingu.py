@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 import traceback
 
@@ -78,6 +79,10 @@ class Pingu(commands.Bot):
         # This makes sure the owner_id gets set and the query is only run once
         if not self.owner_id:
             await self.is_owner(message.author)
+
+        if re.match(r"https?://(www\.)?tiktok\.com/(.+)", message.content):
+            tiktok_embed_link = message.content.replace("tiktok.com/", "vxtiktok.com/", 1)
+            await message.reply(f"[View on Tiktok]({tiktok_embed_link})", mention_author=False)
 
         # Let the library parse the text
         await super().process_commands(message)
