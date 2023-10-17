@@ -80,9 +80,9 @@ class Pingu(commands.Bot):
         if not self.owner_id:
             await self.is_owner(message.author)
 
-        if re.match(r"https?://(www\.)?tiktok\.com/(.+)", message.content):
-            tiktok_embed_link = message.content.replace("tiktok.com/", "vxtiktok.com/", 1)
-            await message.reply(f"[View on Tiktok]({tiktok_embed_link})", mention_author=False)
+        if tiktok_link := re.search(r"https?://(www\.)?tiktok\.com/(t/|@(.*?)/)(.*?)/", message.content):
+            tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
+            await message.reply(f"[View on Tiktok]({tiktok_embed})", mention_author=False)
 
         # Let the library parse the text
         await super().process_commands(message)
