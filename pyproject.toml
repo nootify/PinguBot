@@ -8,7 +8,7 @@ authors = ["nootify"]
 python = ">=3.10,<4"
 python-dotenv = "^1.0.0"
 "discord.py" = {extras = ["voice"], version = "^2.3.2"}
-jishaku = "^2.5.1"
+jishaku = "^2.5.2"
 wavelink = "^2.6.4"
 psutil = "^5.9.5"
 pytz = "^2023.3.post1"
