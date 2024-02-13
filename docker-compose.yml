@@ -41,7 +41,7 @@ services:
       - SERVER_PORT=${LAVALINK_PORT}
       - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD}
     # image: pingulink:latest
-    image: fredboat/lavalink:latest
+    image: fredboat/lavalink:v3-legacy
     networks:
       - bot-network
     restart: always

@@ -80,9 +80,28 @@ class Pingu(commands.Bot):
         if not self.owner_id:
             await self.is_owner(message.author)
 
-        if tiktok_link := re.search(r"https?://(www\.)?tiktok\.com/(t/|@(.*?)/)(.*?)/", message.content):
+        if tiktok_link := re.search(
+            r"https?://(www\.)?tiktok\.com/(t/([a-zA-Z0-9]+)|@(.*?)/video/(\d+))(.*?)/?", message.content
+        ):
             tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
-            await message.reply(f"[View on Tiktok]({tiktok_embed})", mention_author=False)
+            await message.edit(suppress=True)  # hide the fake video preview from tiktok
+            await message.reply(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False)
+            return
+
+        if twitter_link := re.search(
+            r"https?://(www\.)?(twitter|x)\.com/([a-zA-Z0-9_]+)/status/(\d+)", message.content
+        ):
+            await message.edit(suppress=True)
+            twitter_embed = twitter_link.group(0)
+            if "x.com/" in twitter_embed:
+                twitter_embed = twitter_embed.replace("x.com/", "vxtwitter.com/", 1)
+                await message.reply(f"[[View on Twitter/X]]({twitter_embed})", mention_author=False)
+            elif "twitter.com/":
+                twitter_embed = twitter_embed.replace("twitter.com/", "vxtwitter.com/", 1)
+                await message.reply(f"[[View on Twitter/X]]({twitter_embed})", mention_author=False)
+            else:
+                self.log.error("Twitter link embed failed with link: '%s' (found: '%s')", twitter_link, twitter_embed)
+            return
 
         # Let the library parse the text
         await super().process_commands(message)
@@ -119,7 +138,7 @@ class Pingu(commands.Bot):
 
 
 async def main():
-    load_dotenv()
+    load_dotenv(override=True)
 
     TOKEN = os.environ.get("PINGU_TOKEN")
     if not TOKEN:
