@@ -302,4 +302,6 @@ class Schedules(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Schedules(bot))
+    # file structure changed; this entire module needs to be reworked
+    # await bot.add_cog(Schedules(bot))
+    pass
