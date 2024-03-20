@@ -13,14 +13,14 @@ wavelink = "2.6.5"
 psutil = "^5.9.8"
 pytz = "^2024.1"
 pytimeparse = "^1.1.8"
-SQLAlchemy = "^2.0.27"
+SQLAlchemy = "^2.0.28"
 asyncpg = "^0.29.0"
 arrow = "^1.3.0"
 humanize = "^4.9.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.0.0"
-black = "^24.2.0"
+black = "^24.3.0"
 
 [tool.black]
 line-length = 120
