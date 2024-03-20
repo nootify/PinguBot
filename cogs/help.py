@@ -86,15 +86,33 @@ class PinguHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_group_help(self, group):
+        max_embeds = 24
         embed = self.get_help_embed(group)
+        overflow_embed = self.get_help_embed(group)
+        overflow_embed.title = None
+        overflow_embed.description = None
+
         visible_commands = await self.filter_commands(group.commands, sort=True)
-        for command in visible_commands:
-            embed.add_field(
-                name=self.get_command_signature(command),
-                value=self.get_help_short_doc(command),
-                inline=False,
-            )
-        await self.get_destination().send(embed=embed)
+        for idx, command in enumerate(visible_commands):
+            if idx > max_embeds:
+                overflow_embed.add_field(
+                    name=self.get_command_signature(command),
+                    value=self.get_help_short_doc(command),
+                    inline=False,
+                )
+            else:
+                embed.add_field(
+                    name=self.get_command_signature(command),
+                    value=self.get_help_short_doc(command),
+                    inline=False,
+                )
+
+        if len(visible_commands) > max_embeds:
+            embed.set_footer(text=None)
+            stitched_embeds = [embed, overflow_embed]
+            await self.get_destination().send(embeds=stitched_embeds)
+        else:
+            await self.get_destination().send(embed=embed)
 
     async def send_command_help(self, command):
         embed = self.get_help_embed(command)

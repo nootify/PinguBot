@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 from inspect import Parameter
 
@@ -366,6 +368,68 @@ class Auto(commands.Cog):
                 self.sent_message = await message.channel.send(
                     f"{message_deleter.mention} stop deleting my message :confused:"
                 )
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message) -> None:
+        if tiktok_link := re.search(
+            r"https?://(www\.)?tiktok\.com/(t/([a-zA-Z0-9]+)|@(.*?)/video/(\d+))(.*?)/?", message.content
+        ):
+            await asyncio.sleep(1)
+            await message.edit(suppress=True)  # hide the fake video preview from tiktok
+
+            tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
+            await message.channel.send(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False, view=DeleteButton())
+            return
+
+        if twitter_link := re.search(
+            r"https?://(www\.)?(twitter|x)\.com/([a-zA-Z0-9_]+)/status/(\d+)", message.content
+        ):
+            await asyncio.sleep(1)
+            await message.edit(suppress=True)
+
+            twitter_embed = twitter_link.group(0)
+            if "x.com/" in twitter_embed:
+                twitter_embed = twitter_embed.replace("x.com/", "fxtwitter.com/", 1)
+                await message.channel.send(
+                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=DeleteButton()
+                )
+            elif "twitter.com/":
+                twitter_embed = twitter_embed.replace("twitter.com/", "fxtwitter.com/", 1)
+                await message.channel.send(
+                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=DeleteButton()
+                )
+            else:
+                self.log.error("Twitter link embed failed with link: '%s' (found: '%s')", twitter_link, twitter_embed)
+            return
+
+        if reddit_link := re.search(
+            r"https?://(www\.|old\.)?reddit\.com/(((r|u|user)/([a-zA-Z0-9_]+)(/s/|/comments/)?([a-zA-Z0-9_]+)(/[a-zA-Z0-9_]+)?(/[a-zA-Z0-9_]+)?)|([a-zA-Z0-9]+))/?",
+            message.content,
+        ):
+            await asyncio.sleep(1)
+            await message.edit(suppress=True)
+
+            reddit_embed = f"https://embed.works/{reddit_link.group(0)}"  # reddit video links only
+            embed_reply = await message.channel.send(
+                f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=DeleteButton()
+            )
+
+            await asyncio.sleep(2)
+            if embed_reply.embeds[0].video.url is None:
+                reddit_embed = reddit_link.group(0).replace("reddit.com/", "rxddit.com/", 1)
+                await embed_reply.edit(content=reddit_embed)
+            return
+
+
+class DeleteButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(style=discord.ButtonStyle.blurple, custom_id="persistent_view:delete", emoji="\N{WASTEBASKET}")
+    async def count(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # emoji list: https://www.unicode.org/Public/15.0.0/ucd/emoji/emoji-data.txt
+        await interaction.response.defer()
+        await interaction.delete_original_response()
 
 
 async def setup(bot: commands.Bot):

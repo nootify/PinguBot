@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-import re
 import sys
 import traceback
 
@@ -11,6 +10,7 @@ from discord.ext import commands
 from discord.utils import utcnow
 from dotenv import load_dotenv
 
+from cogs.auto import DeleteButton
 from common.utils import Icons
 from models import Base, engine
 
@@ -50,6 +50,8 @@ class Pingu(commands.Bot):
         return embed_template
 
     async def setup_hook(self) -> None:
+        self.add_view(DeleteButton())
+
         self.log.info("Connecting to database")
         async with engine.begin() as conn:
             # await conn.run_sync(Base.metadata.drop_all)
@@ -79,51 +81,6 @@ class Pingu(commands.Bot):
         # This makes sure the owner_id gets set and the query is only run once
         if not self.owner_id:
             await self.is_owner(message.author)
-
-        # TODO: move to separate module and check for on_message_edit
-        if tiktok_link := re.search(
-            r"https?://(www\.)?tiktok\.com/(t/([a-zA-Z0-9]+)|@(.*?)/video/(\d+))(.*?)/?", message.content
-        ):
-            await asyncio.sleep(1)
-            await message.edit(suppress=True)  # hide the fake video preview from tiktok
-
-            tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
-            await message.reply(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False)
-            return
-
-        if twitter_link := re.search(
-            r"https?://(www\.)?(twitter|x)\.com/([a-zA-Z0-9_]+)/status/(\d+)", message.content
-        ):
-            await asyncio.sleep(1)
-            await message.edit(suppress=True)
-
-            twitter_embed = twitter_link.group(0)
-            if "x.com/" in twitter_embed:
-                twitter_embed = twitter_embed.replace("x.com/", "fxtwitter.com/", 1)
-                await message.reply(f"[[View on Twitter/X]]({twitter_embed})", mention_author=False)
-            elif "twitter.com/":
-                twitter_embed = twitter_embed.replace("twitter.com/", "fxtwitter.com/", 1)
-                await message.reply(f"[[View on Twitter/X]]({twitter_embed})", mention_author=False)
-            else:
-                self.log.error("Twitter link embed failed with link: '%s' (found: '%s')", twitter_link, twitter_embed)
-            return
-
-        if reddit_link := re.search(
-            r"https?://(www\.|old\.)?reddit\.com/(((r|u|user)/([a-zA-Z0-9_]+)(/s/|/comments/)?([a-zA-Z0-9_]+)(/[a-zA-Z0-9_]+)?(/[a-zA-Z0-9_]+)?)|([a-zA-Z0-9]+))/?",
-            message.content,
-        ):
-            await asyncio.sleep(1)
-            await message.edit(suppress=True)
-
-            reddit_embed = f"https://embed.works/{reddit_link.group(0)}"  # reddit video links only
-            embed_reply = await message.reply(f"[[View on Reddit]]({reddit_embed})", mention_author=False)
-
-            await asyncio.sleep(2)
-            if embed_reply.embeds[0].video.url is None:
-                reddit_embed = reddit_link.group(0).replace("reddit.com/", "rxddit.com/", 1)
-                await embed_reply.edit(content=reddit_embed)
-
-            return
 
         # Let the library parse the text
         await super().process_commands(message)
