@@ -426,10 +426,41 @@ class DeleteButton(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(style=discord.ButtonStyle.blurple, custom_id="persistent_view:delete", emoji="\N{WASTEBASKET}")
-    async def count(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.message.edit(view=None)
+
         # emoji list: https://www.unicode.org/Public/15.0.0/ucd/emoji/emoji-data.txt
-        await interaction.response.defer()
-        await interaction.delete_original_response()
+        confirm_view = ConfirmButtonView()
+        await interaction.response.send_message(
+            content="Delete this message?", view=confirm_view, ephemeral=True, delete_after=10.0
+        )
+        await confirm_view.wait()
+
+        try:
+            if confirm_view.value is True:
+                await interaction.edit_original_response(content="Message successfully deleted", view=None)
+                await interaction.message.delete()
+            else:
+                await interaction.edit_original_response(content="Message was not deleted", view=None)
+                await interaction.message.edit(view=self)
+        except discord.NotFound:
+            await interaction.edit_original_response(content="Message no longer exists", view=None)
+
+
+class ConfirmButtonView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=7)
+        self.value = None
+
+    @discord.ui.button(label="Yes", style=discord.ButtonStyle.blurple)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        self.stop()
+
+    @discord.ui.button(label="No", style=discord.ButtonStyle.grey)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        self.stop()
 
 
 async def setup(bot: commands.Bot):
