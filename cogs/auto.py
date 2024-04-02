@@ -371,6 +371,9 @@ class Auto(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
+        if not message.guild or message.author.bot:
+            return
+
         if tiktok_link := re.search(
             r"https?://(www\.)?tiktok\.com/(t/([a-zA-Z0-9]+)|@(.*?)/video/(\d+))(.*?)/?", message.content
         ):
@@ -409,15 +412,8 @@ class Auto(commands.Cog):
             await asyncio.sleep(1)
             await message.edit(suppress=True)
 
-            reddit_embed = f"https://embed.works/{reddit_link.group(0)}"  # reddit video links only
-            embed_reply = await message.channel.send(
-                f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=DeleteButton()
-            )
-
-            await asyncio.sleep(2)
-            if embed_reply.embeds[0].video.url is None:
-                reddit_embed = reddit_link.group(0).replace("reddit.com/", "rxddit.com/", 1)
-                await embed_reply.edit(content=reddit_embed)
+            reddit_embed = reddit_link.group(0).replace("reddit.com/", "vxreddit.com/", 1)
+            await message.channel.send(f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=DeleteButton())
             return
 
 
