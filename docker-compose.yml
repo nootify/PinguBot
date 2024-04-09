@@ -47,11 +47,11 @@ services:
     restart: always
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
-    # healthcheck:
-    #   test: ['CMD-SHELL', 'curl localhost:${SERVER_PORT}']
-    #   interval: 5s
-    #   timeout: 5s
-    #   retries: 10
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -H "Authorization: $(echo $LAVALINK_PASSWORD)" -f http://localhost:2333/version']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   db:
     # build: ./db
