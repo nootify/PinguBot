@@ -410,6 +410,8 @@ class Auto(commands.Cog):
             message.content,
         ):
             await asyncio.sleep(1)
+            if re.search(r"https?://(www\.|old\.)?reddit\.com/(r|u|user)/([a-zA-Z0-9_]+)/?$", message.content):
+                return
             await message.edit(suppress=True)
 
             reddit_embed = reddit_link.group(0).replace("reddit.com/", "vxreddit.com/", 1)
