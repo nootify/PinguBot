@@ -414,7 +414,10 @@ class Auto(commands.Cog):
                 return
             await message.edit(suppress=True)
 
-            reddit_embed = reddit_link.group(0).replace("reddit.com/", "vxreddit.com/", 1)
+            if "old.reddit.com/" in reddit_link.group(0):
+                reddit_embed = reddit_link.group(0).replace("old.reddit.com/", "vxreddit.com/", 1)
+            else:
+                reddit_embed = reddit_link.group(0).replace("reddit.com/", "vxreddit.com/", 1)
             await message.channel.send(f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=DeleteButton())
             return
 
