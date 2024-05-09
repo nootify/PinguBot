@@ -58,7 +58,7 @@ COPY poetry.lock pyproject.toml ./
 
 # install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
 RUN poetry install --no-dev
-
+RUN playwright install chromium
 
 # `development` image is used during development / testing
 FROM python-base as development
@@ -81,7 +81,11 @@ COPY . .
 # `production` image used for runtime
 FROM python-base as production
 ENV JISHAKU_HIDE=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pingubot/playwright
 COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
+COPY --from=builder-base /root/.cache/ms-playwright /opt/pingubot/playwright
+
+RUN playwright install-deps chromium
 
 USER pingu:pingu
 WORKDIR /opt/pingubot

@@ -1,11 +1,15 @@
 import logging
 import platform
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import discord
 import psutil
+from discord import app_commands
 from discord.ext import commands
 from discord.utils import utcnow
 from humanize import naturalsize
+from playwright.async_api import async_playwright
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +25,70 @@ class Misc(commands.Cog):
         self.log = logging.getLogger(__name__)
         self.proc = psutil.Process()
         self.proc.cpu_percent()
+
+    @app_commands.command(name="word")
+    async def word_daily(self, interaction: discord.Interaction, date: str = None):
+        """Gets the word of the day from the Merriam-Webster dictionary
+
+        Args:
+            date (str): the day to look up in [mm/dd/yy] format
+        """
+        tz_origin = ZoneInfo("America/New_York")
+        if not date:
+            lookup_date = datetime.now(tz=tz_origin).date()
+        else:
+            try:
+                given_datetime = datetime.strptime(date, "%m/%d/%y").replace(tzinfo=tz_origin)
+                lookup_date = given_datetime.date()
+            except ValueError:
+                await interaction.response.send_message(
+                    "Invalid date given. Make sure you formatted it like: mm/dd/yy",
+                    ephemeral=True,
+                    delete_after=5.0,
+                )
+                return
+            else:
+                today = datetime.now(tz=tz_origin)
+                if given_datetime > today:
+                    await interaction.response.send_message(
+                        "Sorry, time traveling is off-limits.",
+                        ephemeral=True,
+                        delete_after=5.0,
+                    )
+                    return
+
+        await interaction.response.defer()
+        url = f"https://www.merriam-webster.com/word-of-the-day/{lookup_date}"
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url)
+
+            try:
+                word_locator = page.locator('[class="word-header-txt"]')
+                word = await word_locator.text_content()
+
+                attribute_locator = page.locator('[class="main-attr"]')
+                attribute = await attribute_locator.text_content()
+
+                pronunciation_locator = page.locator('[class="word-syllables"]')
+                pronunciation = await pronunciation_locator.text_content()
+
+                content_locator = page.locator('[class="wod-definition-container"]')
+                definition = await content_locator.locator(":nth-match(p, 1)").text_content()
+            except TimeoutError:
+                await interaction.followup.send(
+                    "Sorry, something went wrong or the website is not available. Try again later."
+                )
+                await browser.close()
+                return
+            else:
+                await browser.close()
+
+        description = f"*{attribute}* | {pronunciation}\n\n{definition}"
+        embed: discord.Embed = self.bot.create_embed(title=word, description=description, url=url)
+        embed.set_footer(text=f"Word of the day for {lookup_date.strftime('%B %-m, %Y')}")
+        await interaction.followup.send(embed=embed)
 
     @commands.command(name="status", aliases=["about", "stats"])
     @commands.cooldown(rate=1, per=3.0, type=commands.BucketType.channel)
