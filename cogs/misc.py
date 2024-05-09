@@ -42,7 +42,7 @@ class Misc(commands.Cog):
                 lookup_date = given_datetime.date()
             except ValueError:
                 await interaction.response.send_message(
-                    "Invalid date given. Make sure you formatted it like: mm/dd/yy",
+                    "Invalid date given. Make sure you formatted it like this: mm/dd/yy",
                     ephemeral=True,
                     delete_after=5.0,
                 )
@@ -87,7 +87,7 @@ class Misc(commands.Cog):
 
         description = f"*{attribute}* | {pronunciation}\n\n{definition}"
         embed: discord.Embed = self.bot.create_embed(title=word, description=description, url=url)
-        embed.set_footer(text=f"Word of the day for {lookup_date.strftime('%B %-m, %Y')}")
+        embed.set_footer(text=f"Word of the day for {lookup_date.strftime('%B %-d, %Y')}")
         await interaction.followup.send(embed=embed)
 
     @commands.command(name="status", aliases=["about", "stats"])
