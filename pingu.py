@@ -10,7 +10,7 @@ from discord.ext import commands
 from discord.utils import utcnow
 from dotenv import load_dotenv
 
-from cogs.auto import DeleteButton
+from cogs.auto import EmbedView
 from common.utils import Icons
 from models import Base, engine
 
@@ -50,7 +50,7 @@ class Pingu(commands.Bot):
         return embed_template
 
     async def setup_hook(self) -> None:
-        self.add_view(DeleteButton())
+        self.add_view(EmbedView())
 
         self.log.info("Connecting to database")
         async with engine.begin() as conn:

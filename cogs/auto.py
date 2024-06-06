@@ -381,7 +381,7 @@ class Auto(commands.Cog):
             await message.edit(suppress=True)  # hide the fake video preview from tiktok
 
             tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
-            await message.channel.send(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False, view=DeleteButton())
+            await message.channel.send(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False, view=EmbedView())
             return
 
         if twitter_link := re.search(
@@ -394,12 +394,12 @@ class Auto(commands.Cog):
             if "x.com/" in twitter_embed:
                 twitter_embed = twitter_embed.replace("x.com/", "fxtwitter.com/", 1)
                 await message.channel.send(
-                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=DeleteButton()
+                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=EmbedView()
                 )
             elif "twitter.com/":
                 twitter_embed = twitter_embed.replace("twitter.com/", "fxtwitter.com/", 1)
                 await message.channel.send(
-                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=DeleteButton()
+                    f"[[View on Twitter/X]]({twitter_embed})", mention_author=False, view=EmbedView()
                 )
             else:
                 self.log.error("Twitter link embed failed with link: '%s' (found: '%s')", twitter_link, twitter_embed)
@@ -418,20 +418,26 @@ class Auto(commands.Cog):
                 reddit_embed = reddit_link.group(0).replace("old.reddit.com/", "vxreddit.com/", 1)
             else:
                 reddit_embed = reddit_link.group(0).replace("reddit.com/", "vxreddit.com/", 1)
-            await message.channel.send(f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=DeleteButton())
+            await message.channel.send(f"[[View on Reddit]]({reddit_embed})", mention_author=False, view=EmbedView())
             return
 
 
-class DeleteButton(discord.ui.View):
+class EmbedView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(style=discord.ButtonStyle.blurple, custom_id="persistent_view:delete", emoji="\N{WASTEBASKET}")
+    @discord.ui.button(
+        style=discord.ButtonStyle.danger,
+        custom_id="persistent_view:delete",
+        emoji="\N{WASTEBASKET}",
+        label="Delete",
+    )
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.edit(view=None)
 
         # emoji list: https://www.unicode.org/Public/15.0.0/ucd/emoji/emoji-data.txt
-        confirm_view = ConfirmButtonView()
+        # CLDR list: https://www.unicode.org/Public/UNIDATA/UnicodeData.txt
+        confirm_view = ConfirmView()
         await interaction.response.send_message(
             content="Delete this message?", view=confirm_view, ephemeral=True, delete_after=10.0
         )
@@ -447,8 +453,25 @@ class DeleteButton(discord.ui.View):
         except discord.NotFound:
             await interaction.edit_original_response(content="Message no longer exists", view=None)
 
+    @discord.ui.button(
+        style=discord.ButtonStyle.blurple,
+        custom_id="persistent_view:refresh",
+        emoji="\N{ANTICLOCKWISE DOWNWARDS AND UPWARDS OPEN CIRCLE ARROWS}",
+        label="Refresh",
+    )
+    async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
+        content = interaction.message.content
+        embed = discord.Embed(
+            colour=discord.Colour.from_rgb(138, 181, 252), description=f"{Icons.ALERT} Refreshing ..."
+        )
+        await interaction.message.edit(view=None, content=None, embed=embed)
+        await asyncio.sleep(2)
+        await interaction.message.edit(view=self, content=content, embed=None)
 
-class ConfirmButtonView(discord.ui.View):
+        await interaction.response.send_message(content="Refreshed message", ephemeral=True, delete_after=3.0)
+
+
+class ConfirmView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=7)
         self.value = None
