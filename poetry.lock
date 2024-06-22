@@ -1104,13 +1104,13 @@ files = [
 
 [[package]]
 name = "wavelink"
-version = "3.3.0"
+version = "3.4.0"
 description = "A robust and powerful, fully asynchronous Lavalink wrapper built for discord.py in Python."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "wavelink-3.3.0-py3-none-any.whl", hash = "sha256:240905f54dbb6f53045ab2b649ada578e9e51178d1eaa2334e295f10061d1cf5"},
-    {file = "wavelink-3.3.0.tar.gz", hash = "sha256:239c98b313dfb39ffa193c7599182c5a747a752e3970ebac12bab7b0d8b08d53"},
+    {file = "wavelink-3.4.0-py3-none-any.whl", hash = "sha256:cc5b3a57ac49a36fe9c221a4fb67191bebb967ea735a84780cb92797b739ce98"},
+    {file = "wavelink-3.4.0.tar.gz", hash = "sha256:e5c9cc1f881a8b16a08c75e5734e2f91adf71fd23c1e98d804ee953f05f751c7"},
 ]
 
 [package.dependencies]
@@ -1240,4 +1240,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4"
-content-hash = "98f604cac4eea7d3f7c691611e90857047b3e2e77e09174a9423cace61973469"
+content-hash = "9d916211f51e7a928c281f5b2a1abe955f43041ddcc7ef31e4e4dbcba418a903"
