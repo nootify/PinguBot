@@ -9,7 +9,7 @@ python = ">=3.10,<4"
 python-dotenv = "^1.0.1"
 "discord.py" = {extras = ["voice"], version = "^2.4.0"}
 jishaku = "^2.5.2"
-wavelink = "^3.4.0"
+wavelink = "^3.4.1"
 psutil = "^6.0.0"
 pytz = "^2024.1"
 pytimeparse = "^1.1.8"
