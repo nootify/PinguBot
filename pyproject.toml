@@ -21,7 +21,7 @@ playwright = "^1.45.1"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.0"
-black = "^24.4.2"
+black = "^24.8.0"
 
 [tool.black]
 line-length = 120
