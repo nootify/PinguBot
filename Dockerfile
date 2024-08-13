@@ -42,7 +42,7 @@ RUN apt-get update && \
     useradd -r -u 999 -g pingu pingu
 
 # `builder-base` stage is used to build deps + create our virtual environment
-FROM python-base as builder-base
+FROM python-base AS builder-base
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         curl \
@@ -61,7 +61,7 @@ RUN poetry install --no-dev
 RUN playwright install chromium
 
 # `development` image is used during development / testing
-FROM python-base as development
+FROM python-base AS development
 # ENV FASTAPI_ENV=development
 WORKDIR $PYSETUP_PATH
 
@@ -79,7 +79,7 @@ COPY . .
 
 
 # `production` image used for runtime
-FROM python-base as production
+FROM python-base AS production
 ENV JISHAKU_HIDE=1
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pingubot/playwright
 COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
