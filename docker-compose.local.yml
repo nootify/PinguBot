@@ -1,5 +1,6 @@
 services:
   bot:
+    build: .
     container_name: pingubot
     command:
       - scripts/start.sh
@@ -21,18 +22,26 @@ services:
       - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
-    image: nootify/pingubot:latest
+    image: pingubot:latest
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
     networks:
       - bot-network
     restart: always
     user: pingu:pingu
 
   audio:
+    # build:
+    #   context: ./lavalink
+    #   args:
+    #     - LAVALINK_PORT
+    #     - LAVALINK_PASSWORD
     container_name: pingulink
     environment:
       - _JAVA_OPTIONS=-Xmx512M
       - SERVER_PORT=${LAVALINK_PORT}
       - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD}
+    # image: pingulink:latest
     image: ghcr.io/lavalink-devs/lavalink:4-alpine
     networks:
       - bot-network
@@ -48,6 +57,7 @@ services:
       start_interval: 2s
 
   db:
+    # build: ./db
     container_name: pingudb
     environment:
       - POSTGRES_DB

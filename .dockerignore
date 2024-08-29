@@ -12,6 +12,7 @@ lavalink
 
 # Docker and source control
 docker-compose.yml
+docker-compose.local.yml
 .dockerignore
 .github
 .pre-commit-config.yml
