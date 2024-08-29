@@ -380,7 +380,7 @@ class Auto(commands.Cog):
             await asyncio.sleep(1)
             await message.edit(suppress=True)  # hide the fake video preview from tiktok
 
-            tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "vxtiktok.com/", 1)
+            tiktok_embed = tiktok_link.group(0).replace("tiktok.com/", "tnktok.com/", 1)
             await message.channel.send(f"[[View on Tiktok]]({tiktok_embed})", mention_author=False, view=EmbedView())
             return
 
