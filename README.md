@@ -10,11 +10,12 @@ You need to do this or else the bot will not work properly.
 ## Setup & Deployment
 1. Create a `.env` file with these variables:
 ```bash
+PINGU_PREFIX=?
 PINGU_TOKEN=<bot token>
 
 LAVALINK_HOST=audio
 LAVALINK_PORT=2333
-LAVALINK_PASSWORD=youshallnotpass
+LAVALINK_PASSWORD=<password here>
 
 # only necessary for local db setup
 POSTGRES_HOST=db
@@ -26,5 +27,5 @@ POSTGRES_PASSWORD=<password here>
 ```
 2. Run the bot with:
 ```bash
-docker-compose up -d --build
+docker compose -f docker-compose.local.yml up -d --build
 ```

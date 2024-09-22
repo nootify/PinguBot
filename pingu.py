@@ -145,7 +145,7 @@ async def main():
         "pingu_version": "2.1",
     }
 
-    async with Pingu("%", **settings) as pingu:
+    async with Pingu(os.environ.get("PINGU_PREFIX"), **settings) as pingu:
         await pingu.start(TOKEN)
 
 
