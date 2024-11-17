@@ -11,6 +11,7 @@ from discord.utils import sleep_until, utcnow
 from pytimeparse.timeparse import timeparse
 from pytz import timezone
 from sqlalchemy import delete, select
+from sqlalchemy.sql import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.utils import Icons
@@ -155,6 +156,10 @@ class Auto(commands.Cog):
         async with async_session() as session:
             async with session.begin():
                 await session.execute(delete(Reminder).where(Reminder.user_id == ctx.author.id))
+                result = await session.execute(select(Reminder))
+                rows: list[Reminder] = result.scalars().all()
+                if not rows:
+                    await session.execute(text("ALTER SEQUENCE reminders_reminder_id_seq RESTART"))
                 await session.commit()
 
         embed: discord.Embed = self.bot.create_embed(description=f"{Icons.ALERT} All reminders deleted.")
@@ -177,8 +182,14 @@ class Auto(commands.Cog):
                 reminder = await session.execute(
                     delete(Reminder).where((Reminder.user_id == ctx.author.id) & (Reminder.reminder_id == reminder_id))
                 )
-        if not reminder:
-            raise commands.BadArgument("Reminder with that id was not found.")
+                if not reminder:
+                    raise commands.BadArgument("Reminder with that id was not found.")
+                else:
+                    result = await session.execute(select(Reminder))
+                    rows: list[Reminder] = result.scalars().all()
+                    if not rows:
+                        await session.execute(text("ALTER SEQUENCE reminders_reminder_id_seq RESTART"))
+                await session.commit()
 
         embed: discord.Embed = self.bot.create_embed(description=f"{Icons.ALERT} Reminder deleted succesfully.")
         await ctx.send(embed=embed)
@@ -278,14 +289,10 @@ class Auto(commands.Cog):
     async def setup_reminder(self, reminder: Reminder) -> None:
         await sleep_until(reminder.reminder_time)
 
-        session: AsyncSession
         ping = self.bot.get_user(reminder.user_id)
         channel = self.bot.get_channel(reminder.channel_id)
         if not ping or not channel:
-            async with async_session() as session:
-                async with session.begin():
-                    await session.execute(delete(Reminder).where(Reminder.reminder_id == reminder.reminder_id))
-                    await session.commit()
+            await self.setup_reminder_helper(reminder)
             return
 
         embed: discord.Embed = self.bot.create_embed(title="Don't forget to:", description=reminder.reminder_text)
@@ -294,11 +301,19 @@ class Auto(commands.Cog):
         except discord.HTTPException:
             self.log.debug("Reminder could not be sent because the channel is inaccessible")
         finally:
-            async with async_session() as session:
-                async with session.begin():
-                    await session.execute(delete(Reminder).where(Reminder.reminder_id == reminder.reminder_id))
-                    await session.commit()
+            await self.setup_reminder_helper(reminder)
             Auto.QUEUED_REMINDERS.pop(reminder.reminder_id)
+
+    async def setup_reminder_helper(self, reminder: Reminder) -> None:
+        session: AsyncSession
+        async with async_session() as session:
+            async with session.begin():
+                await session.execute(delete(Reminder).where(Reminder.reminder_id == reminder.reminder_id))
+                result = await session.execute(select(Reminder))
+                rows: list[Reminder] = result.scalars().all()
+                if not rows:
+                    await session.execute(text("ALTER SEQUENCE reminders_reminder_id_seq RESTART"))
+                await session.commit()
 
     @tasks.loop()
     async def send_snipe(self) -> None:
