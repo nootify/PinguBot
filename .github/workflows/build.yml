@@ -19,8 +19,8 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  push_to_registries:
-    name: Push Docker image to multiple registries
+  push_to_dockerhub:
+    name: Push image to Docker Hub
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -54,7 +54,7 @@ jobs:
       # It uses the `tags` and `labels` parameters to tag and label the image with the output from the "meta" step.
       - name: Build and push Docker image
         id: push
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
