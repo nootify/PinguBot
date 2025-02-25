@@ -28,7 +28,7 @@ services:
       com.centurylinklabs.watchtower.enable: "false"
     networks:
       - bot-network
-    restart: always
+    restart: unless-stopped
     user: pingu:pingu
 
   audio:
@@ -46,7 +46,7 @@ services:
     image: ghcr.io/lavalink-devs/lavalink:4-alpine
     networks:
       - bot-network
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
     healthcheck:
@@ -69,7 +69,7 @@ services:
       - "5432:5432"
     networks:
       - bot-network
-    restart: always
+    restart: unless-stopped
     user: postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
