@@ -8,7 +8,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
 python-dotenv = "^1.0.1"
-"discord.py" = {extras = ["voice"], version = "^2.5.0"}
+"discord.py" = {extras = ["voice"], version = "^2.5.2"}
 jishaku = "^2.6.0"
 wavelink = "^3.4.1"
 psutil = "^7.0.0"
